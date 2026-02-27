@@ -1,50 +1,135 @@
-# Welcome to your Expo app 👋
+# 📱 TaskLife
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+> Organiza tu estudio, trabajo y bienestar en un solo lugar.
 
-## Get started
+![React Native](https://img.shields.io/badge/React_Native-0.76-61DAFB?style=flat&logo=react)
+![Expo](https://img.shields.io/badge/Expo-52-000020?style=flat&logo=expo)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=flat&logo=typescript)
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## 📸 Pantallas
 
-2. Start the app
+| Welcome                          | Home                          | Tareas                      | Áreas                      | Perfil           |
+| -------------------------------- | ----------------------------- | --------------------------- | -------------------------- | ---------------- |
+| Pantalla de bienvenida con login | Dashboard con resumen del día | Lista de tareas con filtros | Grid de áreas con progreso | Info del usuario |
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+## 🚀 Funcionalidades
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- ✅ Autenticación con **email/contraseña**
+- ✅ Autenticación con **Google** (en desarrollo)
+- ✅ **Dashboard** con saludo dinámico y resumen del día
+- ✅ **Gestión de tareas** con filtros por estado y área
+- ✅ **4 áreas de vida**: Trabajo, Educación, Finanzas, Bienestar
+- ✅ **Perfil de usuario** con estadísticas
+- ✅ Navegación por **tabs** con Expo Router
+- ✅ Diseño responsive para Android e iOS
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+---
 
-## Get a fresh project
+## 🗂️ Arquitectura
 
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+miApp/
+├── app/
+│   ├── (auth)/              # Pantallas sin tabs
+│   │   ├── _layout.tsx
+│   │   ├── welcome.tsx      # Pantalla inicial
+│   │   ├── login.tsx
+│   │   └── register.tsx
+│   ├── (tabs)/              # Pantallas con bottom tabs
+│   │   ├── _layout.tsx
+│   │   ├── index.tsx        # Home / Dashboard
+│   │   ├── tasks.tsx        # Mis tareas
+│   │   ├── areas.tsx        # Mis áreas
+│   │   └── profile.tsx      # Perfil
+│   ├── _layout.tsx          # Root layout con AuthProvider
+│   └── index.tsx            # Redirige según sesión
+├── components/ui/           # Componentes reutilizables
+├── constants/theme.ts       # Colores y fuentes
+├── context/AuthContext.tsx  # Estado global de autenticación
+└── hooks/useGoogleAuth.ts   # Hook para Google Sign In
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-## Learn more
+## 🛠️ Tech Stack
 
-To learn more about developing your project with Expo, look at the following resources:
+| Tecnología                     | Uso                           |
+| ------------------------------ | ----------------------------- |
+| React Native                   | Framework móvil               |
+| Expo SDK 52                    | Plataforma de desarrollo      |
+| Expo Router                    | Navegación basada en archivos |
+| TypeScript                     | Tipado estático               |
+| Context API                    | Estado global                 |
+| @expo/vector-icons             | Íconos                        |
+| react-native-safe-area-context | Áreas seguras                 |
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+---
 
-## Join the community
+## ⚙️ Instalación
 
-Join our community of developers creating universal apps.
+### Requisitos previos
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- Node.js 18+
+- npm o yarn
+- Expo Go (para desarrollo) o Android Studio (para build nativo)
+
+### Pasos
+
+```bash
+# 1. Clonar el repositorio
+git clone https://github.com/TU_USUARIO/tasklife.git
+cd tasklife
+
+# 2. Instalar dependencias
+npm install
+
+# 3. Iniciar el proyecto
+npx expo start
+```
+
+Luego presiona **`a`** para abrir en el emulador de Android o escanea el QR con Expo Go.
+
+---
+
+## 🔐 Variables de entorno
+
+Para activar Google Sign In crea un proyecto en [Google Cloud Console](https://console.cloud.google.com) y agrega tu `webClientId` en `hooks/useGoogleAuth.ts`.
+
+```ts
+GoogleSignin.configure({
+  webClientId: "TU_WEB_CLIENT_ID.apps.googleusercontent.com",
+});
+```
+
+---
+
+## 📋 Roadmap
+
+- [x] Pantalla de bienvenida
+- [x] Autenticación con email
+- [x] Autenticación con Google (simulada)
+- [x] Home con dashboard
+- [x] Pantalla de tareas con CRUD básico
+- [x] Pantalla de áreas con progreso
+- [x] Perfil de usuario
+- [ ] Google Sign In nativo (build)
+- [ ] Base de datos real (Supabase / Firebase)
+- [ ] Notificaciones push
+- [ ] Modo oscuro
+- [ ] Publicación en Play Store
+
+---
+
+## 👨‍💻 Autor
+
+Desarrollado como proyecto de aprendizaje de **React Native** con Expo.
+
+---
+
+## 📄 Licencia
+
+MIT License — siéntete libre de usar este proyecto como base para tus propias apps.

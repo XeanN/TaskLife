@@ -1,0 +1,30 @@
+// ─────────────────────────────────────────────────────────────
+// INSTRUCCIONES PARA CONFIGURAR GOOGLE OAuth
+// ─────────────────────────────────────────────────────────────
+//
+// 1. Ve a: https://console.cloud.google.com/
+// 2. Crea un proyecto (o usa uno existente)
+// 3. Ve a "APIs & Services" → "Credentials"
+// 4. Crea "OAuth 2.0 Client ID" con tipo:
+//    - Android: com.tuempresa.tasklife
+//    - iOS:     com.tuempresa.tasklife
+//    - Web:     (necesario para Expo Go)
+//
+// 5. Copia los clientIds y pégalos abajo en tu app.json:
+//
+// "expo": {
+//   ...
+//   "scheme": "tasklife",          ← MUY IMPORTANTE para el redirect
+//   "plugins": [
+//     [
+//       "expo-auth-session",
+//       {
+//         "scheme": "tasklife"
+//       }
+//     ]
+//   ]
+// }
+//
+// ─────────────────────────────────────────────────────────────
+// TUS CLIENT IDs van en el archivo useGoogleAuth.ts (ver abajo)
+// ─────────────────────────────────────────────────────────────
