@@ -1,7 +1,20 @@
+import { auth } from "@/config/firebase";
 import { router } from "expo-router";
-import { createContext, ReactNode, useContext, useState } from "react";
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+} from "firebase/auth";
+import {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
-// ─── Tipos ────────────────────────────────────────────────
 export type User = {
   id: string;
   email: string;
@@ -26,22 +39,55 @@ type AuthContextType = {
   logout: () => void;
 };
 
-// ─── Contexto ─────────────────────────────────────────────
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
-// ─── Provider ─────────────────────────────────────────────
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Restaura sesión automáticamente al abrir la app
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setUser({
+          id: firebaseUser.uid,
+          email: firebaseUser.email ?? "",
+          name: firebaseUser.displayName ?? "Usuario",
+          picture: firebaseUser.photoURL ?? undefined,
+          provider: "email",
+        });
+      } else {
+        setUser(null);
+      }
+      setIsLoading(false);
+    });
+    return unsubscribe;
+  }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      await new Promise((res) => setTimeout(res, 800)); // simula red
-      setUser({ id: "1", email, name: "Usuario", provider: "email" });
+      const { user: fbUser } = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
+      setUser({
+        id: fbUser.uid,
+        email: fbUser.email ?? "",
+        name: fbUser.displayName ?? "Usuario",
+        provider: "email",
+      });
       router.replace("/(tabs)");
-    } catch {
-      throw new Error("Correo o contraseña incorrectos");
+    } catch (error: any) {
+      if (
+        error.code === "auth/user-not-found" ||
+        error.code === "auth/wrong-password" ||
+        error.code === "auth/invalid-credential"
+      ) {
+        throw new Error("Correo o contraseña incorrectos");
+      }
+      throw new Error("Error al iniciar sesión");
     } finally {
       setIsLoading(false);
     }
@@ -50,11 +96,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (name: string, email: string, password: string) => {
     setIsLoading(true);
     try {
-      await new Promise((res) => setTimeout(res, 800));
-      setUser({ id: "2", email, name, provider: "email" });
+      const { user: fbUser } = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
+      await updateProfile(fbUser, { displayName: name });
+      setUser({
+        id: fbUser.uid,
+        email: fbUser.email ?? "",
+        name,
+        provider: "email",
+      });
       router.replace("/(tabs)");
-    } catch {
-      throw new Error("No se pudo crear la cuenta");
+    } catch (error: any) {
+      if (error.code === "auth/email-already-in-use") {
+        throw new Error("Este correo ya está registrado");
+      }
+      throw new Error("Error al crear la cuenta");
     } finally {
       setIsLoading(false);
     }
@@ -78,7 +137,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await signOut(auth);
     setUser(null);
     router.replace("/(auth)/welcome");
   };
