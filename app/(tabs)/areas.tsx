@@ -1,22 +1,12 @@
+import { useAuth } from "@/context/AuthContext";
+import { subscribeToTasks } from "@/services/taskService";
 import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-// ─── Tipos ────────────────────────────────────────────────
-type Area = {
-  id: string;
-  label: string;
-  description: string;
-  color: string;
-  colorLight: string;
-  icon: string;
-  lib: "ionicons" | "fa5" | "material";
-  total: number;
-  done: number;
-};
-
-// ─── Datos de áreas ───────────────────────────────────────
-const AREAS: Area[] = [
+const AREAS = [
   {
     id: "work",
     label: "Trabajo",
@@ -25,8 +15,6 @@ const AREAS: Area[] = [
     colorLight: "#E8F2F8",
     icon: "briefcase",
     lib: "ionicons",
-    total: 5,
-    done: 3,
   },
   {
     id: "education",
@@ -36,8 +24,6 @@ const AREAS: Area[] = [
     colorLight: "#EAF4FB",
     icon: "school",
     lib: "ionicons",
-    total: 3,
-    done: 1,
   },
   {
     id: "finance",
@@ -47,8 +33,6 @@ const AREAS: Area[] = [
     colorLight: "#E6F7F2",
     icon: "chart-bar",
     lib: "fa5",
-    total: 2,
-    done: 0,
   },
   {
     id: "health",
@@ -58,12 +42,9 @@ const AREAS: Area[] = [
     colorLight: "#E8F8ED",
     icon: "favorite-border",
     lib: "material",
-    total: 4,
-    done: 3,
   },
-];
+] as const;
 
-// ─── Helper de ícono ──────────────────────────────────────
 function AreaIcon({
   lib,
   icon,
@@ -82,7 +63,6 @@ function AreaIcon({
   return <Ionicons name={icon as any} size={size} color={color} />;
 }
 
-// ─── Barra de progreso ────────────────────────────────────
 function ProgressBar({
   total,
   done,
@@ -94,10 +74,10 @@ function ProgressBar({
 }) {
   const pct = total === 0 ? 0 : Math.round((done / total) * 100);
   return (
-    <View style={styles.progressBg}>
+    <View style={s.progressBg}>
       <View
         style={[
-          styles.progressFill,
+          s.progressFill,
           { width: `${pct}%` as any, backgroundColor: color },
         ]}
       />
@@ -106,53 +86,77 @@ function ProgressBar({
 }
 
 export default function AreasScreen() {
-  const totalTasks = AREAS.reduce((acc, a) => acc + a.total, 0);
-  const doneTasks = AREAS.reduce((acc, a) => acc + a.done, 0);
+  const { user } = useAuth();
+  const [counts, setCounts] = useState<
+    Record<string, { total: number; done: number }>
+  >({});
+
+  // Escucha conteo de tareas por área en tiempo real
+  useEffect(() => {
+    if (!user) return;
+    const unsubs = AREAS.map((area) =>
+      subscribeToTasks(user.id, area.id, (tasks) => {
+        setCounts((prev) => ({
+          ...prev,
+          [area.id]: {
+            total: tasks.length,
+            done: tasks.filter((t) => t.done).length,
+          },
+        }));
+      }),
+    );
+    return () => unsubs.forEach((u) => u());
+  }, [user]);
+
+  const totalTasks = Object.values(counts).reduce((a, c) => a + c.total, 0);
+  const doneTasks = Object.values(counts).reduce((a, c) => a + c.done, 0);
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={s.safe}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Header ── */}
-        <Text style={styles.screenTitle}>Mis áreas</Text>
-        <Text style={styles.screenSubtitle}>
+        <Text style={s.screenTitle}>Mis áreas</Text>
+        <Text style={s.screenSubtitle}>
           {doneTasks} de {totalTasks} tareas completadas
         </Text>
 
-        {/* ── Resumen global ── */}
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryPct}>
+        {/* Resumen global */}
+        <View style={s.summaryCard}>
+          <View style={s.summaryRow}>
+            <Text style={s.summaryPct}>
               {totalTasks === 0
                 ? 0
                 : Math.round((doneTasks / totalTasks) * 100)}
               %
             </Text>
-            <Text style={styles.summaryLabel}>progreso general</Text>
+            <Text style={s.summaryLabel}>progreso general</Text>
           </View>
           <ProgressBar total={totalTasks} done={doneTasks} color="#3F7EA6" />
         </View>
 
-        {/* ── Grid de áreas ── */}
-        <View style={styles.grid}>
+        {/* Grid */}
+        <View style={s.grid}>
           {AREAS.map((area) => {
+            const c = counts[area.id] ?? { total: 0, done: 0 };
             const pct =
-              area.total === 0 ? 0 : Math.round((area.done / area.total) * 100);
+              c.total === 0 ? 0 : Math.round((c.done / c.total) * 100);
             return (
               <Pressable
                 key={area.id}
                 style={({ pressed }) => [
-                  styles.areaCard,
+                  s.areaCard,
                   { backgroundColor: area.colorLight },
-                  pressed && styles.pressed,
+                  pressed && s.pressed,
                 ]}
+                onPress={() =>
+                  router.push(
+                    `/area/${area.id}?label=${area.label}&color=${encodeURIComponent(area.color)}`,
+                  )
+                }
               >
-                {/* Ícono */}
-                <View
-                  style={[styles.iconCircle, { backgroundColor: area.color }]}
-                >
+                <View style={[s.iconCircle, { backgroundColor: area.color }]}>
                   <AreaIcon
                     lib={area.lib}
                     icon={area.icon}
@@ -160,49 +164,37 @@ export default function AreasScreen() {
                     color="#fff"
                   />
                 </View>
-
-                {/* Texto */}
-                <Text style={styles.areaLabel}>{area.label}</Text>
-                <Text style={styles.areaDescription}>{area.description}</Text>
-
-                {/* Progreso */}
-                <View style={styles.areaStats}>
-                  <Text style={[styles.areaPct, { color: area.color }]}>
-                    {pct}%
-                  </Text>
-                  <Text style={styles.areaCount}>
-                    {area.done}/{area.total} tareas
+                <Text style={s.areaLabel}>{area.label}</Text>
+                <Text style={s.areaDescription}>{area.description}</Text>
+                <View style={s.areaStats}>
+                  <Text style={[s.areaPct, { color: area.color }]}>{pct}%</Text>
+                  <Text style={s.areaCount}>
+                    {c.done}/{c.total} tareas
                   </Text>
                 </View>
-                <ProgressBar
-                  total={area.total}
-                  done={area.done}
-                  color={area.color}
-                />
+                <ProgressBar total={c.total} done={c.done} color={area.color} />
+                <View style={s.arrowRow}>
+                  <Text style={[s.viewMore, { color: area.color }]}>
+                    Ver tareas
+                  </Text>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={14}
+                    color={area.color}
+                  />
+                </View>
               </Pressable>
             );
           })}
         </View>
-
-        {/* ── Botón nueva área (provisional) ── */}
-        <Pressable
-          style={({ pressed }) => [
-            styles.addAreaBtn,
-            pressed && { opacity: 0.85 },
-          ]}
-        >
-          <Ionicons name="add-circle-outline" size={20} color="#3F7EA6" />
-          <Text style={styles.addAreaText}>Nueva área</Text>
-        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#E9ECEF" },
   content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 },
-
   screenTitle: {
     fontSize: 22,
     fontWeight: "800",
@@ -210,17 +202,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   screenSubtitle: { fontSize: 13, color: "#6B7280", marginBottom: 20 },
-
-  // Resumen
   summaryCard: {
     backgroundColor: "#fff",
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   summaryRow: {
@@ -231,25 +217,13 @@ const styles = StyleSheet.create({
   },
   summaryPct: { fontSize: 32, fontWeight: "800", color: "#3F7EA6" },
   summaryLabel: { fontSize: 14, color: "#6B7280" },
-
-  // Grid
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
     gap: 14,
   },
-  areaCard: {
-    width: "47%",
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 0,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
-  },
+  areaCard: { width: "47%", borderRadius: 18, padding: 16, elevation: 3 },
   pressed: { opacity: 0.88, transform: [{ scale: 0.97 }] },
   iconCircle: {
     width: 48,
@@ -279,8 +253,6 @@ const styles = StyleSheet.create({
   },
   areaPct: { fontSize: 16, fontWeight: "800" },
   areaCount: { fontSize: 11, color: "#6B7280" },
-
-  // Progress bar
   progressBg: {
     height: 6,
     backgroundColor: "rgba(0,0,0,0.08)",
@@ -288,20 +260,11 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   progressFill: { height: 6, borderRadius: 3 },
-
-  // Botón nueva área
-  addAreaBtn: {
+  arrowRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    paddingVertical: 14,
-    marginTop: 4,
-    borderWidth: 1.5,
-    borderColor: "#3F7EA6",
-    borderStyle: "dashed",
+    marginTop: 10,
+    gap: 2,
   },
-  addAreaText: { fontSize: 15, color: "#3F7EA6", fontWeight: "700" },
+  viewMore: { fontSize: 12, fontWeight: "600" },
 });
