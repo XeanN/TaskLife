@@ -1,13 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-// useSafeAreaInsets detecta el alto de la barra de navegación del sistema
-// (los 3 botones de Android). En dispositivos sin ella devuelve 0.
 
 export default function TabLayout() {
-  // insets.bottom = altura real de la nav bar del sistema (varía por modelo)
-  const insets = useSafeAreaInsets();
-
   return (
     <Tabs
       screenOptions={{
@@ -22,10 +16,8 @@ export default function TabLayout() {
           shadowOpacity: 0.08,
           shadowRadius: 12,
           shadowOffset: { width: 0, height: -3 },
-          // La barra crece solo si el dispositivo tiene nav bar de 3 botones
-          height: 62 + insets.bottom,
-          // Empuja los íconos hacia arriba para que no queden sobre los botones
-          paddingBottom: 8 + insets.bottom,
+          height: 62,
+          paddingBottom: 8,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
       }}
@@ -49,15 +41,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="areas"
-        options={{
-          title: "Áreas",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="grid-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="profile"
         options={{
           title: "Perfil",
@@ -66,6 +49,10 @@ export default function TabLayout() {
           ),
         }}
       />
+
+      {/* Ocultar tabs que ya no van en la barra */}
+      <Tabs.Screen name="areas" options={{ href: null }} />
+      <Tabs.Screen name="explore" options={{ href: null }} />
     </Tabs>
   );
 }

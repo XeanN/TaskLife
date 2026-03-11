@@ -1,16 +1,18 @@
 import { useAuth } from "@/context/AuthContext";
+import { subscribeToTasks, Task } from "@/services/taskService";
 import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-// ─── Datos ────────────────────────────────────────────────
+// ─── Áreas ────────────────────────────────────────────────
 const AREAS = [
   {
     id: "work",
     label: "Trabajo",
     icon: "briefcase",
     color: "#5C8DAE",
-    count: 2,
     lib: "ionicons",
   },
   {
@@ -18,7 +20,6 @@ const AREAS = [
     label: "Educación",
     icon: "school",
     color: "#7FB3D5",
-    count: 1,
     lib: "ionicons",
   },
   {
@@ -26,7 +27,6 @@ const AREAS = [
     label: "Finanzas",
     icon: "chart-bar",
     color: "#66C2A5",
-    count: 0,
     lib: "fa5",
   },
   {
@@ -34,34 +34,9 @@ const AREAS = [
     label: "Bienestar",
     icon: "favorite-border",
     color: "#76C893",
-    count: 3,
     lib: "material",
   },
 ] as const;
-
-const TODAY_TASKS = [
-  {
-    id: "1",
-    title: "Revisar correos del cliente",
-    area: "Trabajo",
-    done: false,
-    color: "#5C8DAE",
-  },
-  {
-    id: "2",
-    title: "Leer capítulo 3 de React",
-    area: "Educación",
-    done: true,
-    color: "#7FB3D5",
-  },
-  {
-    id: "3",
-    title: "Meditar 10 minutos",
-    area: "Bienestar",
-    done: false,
-    color: "#76C893",
-  },
-];
 
 function AreaIcon({
   lib,
@@ -81,8 +56,39 @@ function AreaIcon({
 
 export default function HomeScreen() {
   const { user } = useAuth();
+  const [allTasks, setAllTasks] = useState<Record<string, Task[]>>({});
 
-  const pending = TODAY_TASKS.filter((t) => !t.done).length;
+  // Suscribir a tareas de todas las áreas en tiempo real
+  useEffect(() => {
+    if (!user) return;
+    const unsubs = AREAS.map((area) =>
+      subscribeToTasks(user.id, area.id, (tasks) => {
+        setAllTasks((prev) => ({ ...prev, [area.id]: tasks }));
+      }),
+    );
+    return () => unsubs.forEach((u) => u());
+  }, [user]);
+
+  // Tareas de hoy pendientes (con fecha = hoy)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const todayTasks = Object.values(allTasks)
+    .flat()
+    .filter((t) => {
+      if (t.done) return false;
+      if (!t.dueDate) return false;
+      const d = new Date(t.dueDate);
+      d.setHours(0, 0, 0, 0);
+      return d >= today && d < tomorrow;
+    })
+    .slice(0, 5);
+
+  const totalPending = Object.values(allTasks)
+    .flat()
+    .filter((t) => !t.done).length;
   const firstName = user?.name?.split(" ")[0] ?? "Usuario";
 
   const greeting = () => {
@@ -98,9 +104,13 @@ export default function HomeScreen() {
     month: "long",
   });
 
+  const goToArea = (area: (typeof AREAS)[number]) =>
+    router.push(
+      `/area/${area.id}?label=${area.label}&color=${encodeURIComponent(area.color)}`,
+    );
+
   return (
-    <SafeAreaView style={s.safe} edges={['top', 'left', 'right']}>
-      {/* edges sin 'bottom': la tab bar ya reserva ese espacio con insets.bottom */}
+    <SafeAreaView style={s.safe}>
       <ScrollView
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
@@ -113,11 +123,14 @@ export default function HomeScreen() {
             </Text>
             <Text style={s.date}>{todayStr}</Text>
           </View>
-          <View style={s.avatarCircle}>
+          <Pressable
+            onPress={() => router.push("/(tabs)/profile")}
+            style={s.avatarCircle}
+          >
             <Text style={s.avatarText}>
               {user?.name?.charAt(0).toUpperCase() ?? "U"}
             </Text>
-          </View>
+          </Pressable>
         </View>
 
         {/* ── Banner resumen ── */}
@@ -126,9 +139,9 @@ export default function HomeScreen() {
           <Text style={s.bannerText}>
             Tienes{" "}
             <Text style={s.bannerBold}>
-              {pending} tarea{pending !== 1 ? "s" : ""}
+              {totalPending} tarea{totalPending !== 1 ? "s" : ""}
             </Text>{" "}
-            pendiente{pending !== 1 ? "s" : ""} hoy
+            pendiente{totalPending !== 1 ? "s" : ""} hoy
           </Text>
         </View>
 
@@ -138,55 +151,84 @@ export default function HomeScreen() {
             <Ionicons name="calendar-outline" size={17} color={C.gold} />
             <Text style={s.sectionTitle}>Mi día</Text>
           </View>
-
           <View style={s.dayCard}>
-            {TODAY_TASKS.map((task, i) => (
-              <View key={task.id} style={[s.taskRow, i > 0 && s.taskBorder]}>
-                <Ionicons
-                  name={task.done ? "checkmark-circle" : "ellipse-outline"}
-                  size={22}
-                  color={task.done ? task.color : "#ddd"}
-                />
-                <View style={s.taskInfo}>
-                  <Text style={[s.taskTitle, task.done && s.taskDone]}>
-                    {task.title}
-                  </Text>
-                  <View style={[s.tag, { backgroundColor: task.color + "22" }]}>
-                    <Text style={[s.tagText, { color: task.color }]}>
-                      {task.area}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            ))}
+            {todayTasks.length === 0 ? (
+              <Text style={s.emptyDay}>🎉 Sin tareas para hoy</Text>
+            ) : (
+              todayTasks.map((task, i) => {
+                const area = AREAS.find((a) => a.id === task.areaId);
+                return (
+                  <Pressable
+                    key={task.id}
+                    style={[s.taskRow, i > 0 && s.taskBorder]}
+                    onPress={() => area && goToArea(area)}
+                  >
+                    <Ionicons name="ellipse-outline" size={22} color="#ddd" />
+                    <View style={s.taskInfo}>
+                      <Text style={s.taskTitle}>{task.title}</Text>
+                      {area && (
+                        <View
+                          style={[
+                            s.tag,
+                            { backgroundColor: area.color + "22" },
+                          ]}
+                        >
+                          <Text style={[s.tagText, { color: area.color }]}>
+                            {area.label}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color="#ddd" />
+                  </Pressable>
+                );
+              })
+            )}
           </View>
         </View>
 
-        {/* ── Áreas ── */}
+        {/* ── Mis áreas ── */}
         <View style={s.section}>
           <Text style={[s.sectionTitle, { marginBottom: 12 }]}>Mis áreas</Text>
           <View style={s.grid}>
-            {AREAS.map((area) => (
-              <Pressable
-                key={area.id}
-                style={({ pressed }) => [
-                  s.areaCard,
-                  { backgroundColor: area.color },
-                  pressed && s.pressed,
-                ]}
-              >
-                <AreaIcon lib={area.lib} icon={area.icon} size={26} />
-                <Text style={s.areaLabel}>{area.label}</Text>
-                <Text style={s.areaCount}>
-                  {area.count} {area.count === 1 ? "tarea" : "tareas"}
-                </Text>
-              </Pressable>
-            ))}
+            {AREAS.map((area) => {
+              const tasks = allTasks[area.id] ?? [];
+              const pending = tasks.filter((t) => !t.done).length;
+              const total = tasks.length;
+              const pct =
+                total === 0 ? 0 : Math.round(((total - pending) / total) * 100);
+              return (
+                <Pressable
+                  key={area.id}
+                  style={({ pressed }) => [
+                    s.areaCard,
+                    { backgroundColor: area.color },
+                    pressed && s.pressed,
+                  ]}
+                  onPress={() => goToArea(area)}
+                >
+                  <AreaIcon lib={area.lib} icon={area.icon} size={26} />
+                  <Text style={s.areaLabel}>{area.label}</Text>
+                  <Text style={s.areaCount}>
+                    {pending} {pending === 1 ? "pendiente" : "pendientes"}
+                  </Text>
+                  {/* Mini barra de progreso */}
+                  <View style={s.miniBarBg}>
+                    <View
+                      style={[s.miniBarFill, { width: `${pct}%` as any }]}
+                    />
+                  </View>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
 
         {/* ── Nueva tarea ── */}
-        <Pressable style={({ pressed }) => [s.addBtn, pressed && s.pressed]}>
+        <Pressable
+          style={({ pressed }) => [s.addBtn, pressed && s.pressed]}
+          onPress={() => router.push("/(tabs)/tasks")}
+        >
           <Ionicons name="add-circle-outline" size={22} color="#fff" />
           <Text style={s.addBtnText}>Nueva tarea</Text>
         </Pressable>
@@ -195,6 +237,7 @@ export default function HomeScreen() {
   );
 }
 
+// ─── Colores ─────────────────────────────────────────────
 const C = {
   bg: "#E9ECEF",
   primary: "#3F7EA6",
@@ -209,7 +252,6 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.bg },
   content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 },
 
-  // Header
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -233,7 +275,6 @@ const s = StyleSheet.create({
   },
   avatarText: { fontSize: 18, fontWeight: "800", color: C.white },
 
-  // Banner
   banner: {
     flexDirection: "row",
     alignItems: "center",
@@ -247,7 +288,6 @@ const s = StyleSheet.create({
   bannerText: { fontSize: 14, color: C.gray },
   bannerBold: { color: C.primary, fontWeight: "700" },
 
-  // Sections
   section: { marginBottom: 24 },
   sectionHeader: {
     flexDirection: "row",
@@ -257,17 +297,18 @@ const s = StyleSheet.create({
   },
   sectionTitle: { fontSize: 17, fontWeight: "700", color: C.text },
 
-  // Day card
   dayCard: {
     backgroundColor: C.white,
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
     elevation: 3,
+  },
+  emptyDay: {
+    fontSize: 14,
+    color: C.gray,
+    paddingVertical: 16,
+    textAlign: "center",
   },
   taskRow: {
     flexDirection: "row",
@@ -283,7 +324,6 @@ const s = StyleSheet.create({
     color: C.text,
     marginBottom: 5,
   },
-  taskDone: { textDecorationLine: "line-through", color: "#bbb" },
   tag: {
     alignSelf: "flex-start",
     paddingHorizontal: 8,
@@ -292,7 +332,6 @@ const s = StyleSheet.create({
   },
   tagText: { fontSize: 11, fontWeight: "600" },
 
-  // Grid
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -300,20 +339,28 @@ const s = StyleSheet.create({
   },
   areaCard: {
     width: "48%",
-    paddingVertical: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 14,
     borderRadius: 16,
     alignItems: "center",
     marginBottom: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
     elevation: 4,
   },
   areaLabel: { marginTop: 10, fontSize: 14, fontWeight: "700", color: C.white },
   areaCount: { marginTop: 4, fontSize: 12, color: "rgba(255,255,255,0.8)" },
+  miniBarBg: {
+    width: "100%",
+    height: 4,
+    backgroundColor: "rgba(255,255,255,0.3)",
+    borderRadius: 2,
+    marginTop: 10,
+  },
+  miniBarFill: {
+    height: 4,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderRadius: 2,
+  },
 
-  // Add button
   addBtn: {
     flexDirection: "row",
     backgroundColor: C.primary,
@@ -322,10 +369,6 @@ const s = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 8,
-    shadowColor: C.primary,
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
     elevation: 5,
   },
   addBtnText: { color: C.white, fontSize: 16, fontWeight: "700" },
