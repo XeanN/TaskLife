@@ -1,4 +1,5 @@
 import { AuthProvider } from "@/context/AuthContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import { Stack } from "expo-router";
 
 // ─── TEST TEMPORAL DE CONEXIÓN ─────────────────────────────
@@ -23,14 +24,17 @@ import { Stack } from "expo-router";
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="area" />
-        <Stack.Screen name="modal" options={{ presentation: "modal" }} />
-      </Stack>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="area" />
+          <Stack.Screen name="settings" />
+          <Stack.Screen name="modal" options={{ presentation: "modal" }} />
+        </Stack>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
