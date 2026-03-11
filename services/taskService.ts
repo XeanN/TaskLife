@@ -1,15 +1,19 @@
+// ─── taskService.ts ──────────────────────────────────────
+// Único archivo que habla directamente con Firestore.
+// Todas las pantallas usan estas funciones; ninguna hace
+// llamadas a Firebase por su cuenta.
 import { db } from "@/config/firebase";
 import {
-    addDoc,
-    collection,
-    deleteDoc,
-    doc,
-    getDocs,
-    onSnapshot,
-    orderBy,
-    query,
-    Timestamp,
-    updateDoc,
+  addDoc, // crea un documento con ID automático
+  collection, // referencia a una colección
+  deleteDoc, // elimina un documento
+  doc, // referencia a un documento específico por ID
+  getDocs, // lectura única (sin tiempo real)
+  onSnapshot, // escucha cambios en tiempo real
+  orderBy, // ordena los resultados de una consulta
+  query, // construye una consulta con filtros/orden
+  Timestamp, // tipo de fecha de Firestore (≠ Date de JS)
+  updateDoc, // actualiza campos de un documento existente
 } from "firebase/firestore";
 
 // ─── Tipos ────────────────────────────────────────────────
@@ -37,14 +41,23 @@ export type Task = {
 export type NewTask = Omit<Task, "id" | "createdAt" | "updatedAt">;
 
 // ─── Rutas Firestore ──────────────────────────────────────
+// Estructura en la base de datos:
+//   users/{userId}/areas/{areaId}/tasks/{taskId}
+//   users/{userId}/labels/{labelId}
+// Cada usuario tiene sus propios datos aislados por su uid.
+
+// Referencia a la subcolección de tareas de un área
 const tasksRef = (userId: string, areaId: string) =>
   collection(db, "users", userId, "areas", areaId, "tasks");
 
+// Referencia a las etiquetas personalizadas del usuario
 const labelsRef = (userId: string) => collection(db, "users", userId, "labels");
 
 // ─── TAREAS ───────────────────────────────────────────────
 
-// Escucha tareas en tiempo real
+// Escucha tareas en tiempo real con onSnapshot:
+// cada vez que cambia un dato en Firestore, la UI se actualiza
+// sin necesidad de recargar manualmente.
 export function subscribeToTasks(
   userId: string,
   areaId: string,
@@ -73,7 +86,9 @@ export function subscribeToTasks(
   });
 }
 
-// Crear tarea
+// Crea una tarea nueva en Firestore.
+// addDoc genera el ID automáticamente; los timestamps
+// se convierten al formato Timestamp de Firestore.
 export async function createTask(
   userId: string,
   areaId: string,
@@ -88,7 +103,8 @@ export async function createTask(
   });
 }
 
-// Actualizar tarea
+// Actualiza solo los campos enviados (Partial), sin reescribir
+// todo el documento. Siempre actualiza updatedAt.
 export async function updateTask(
   userId: string,
   areaId: string,
@@ -103,7 +119,7 @@ export async function updateTask(
   });
 }
 
-// Eliminar tarea
+// Elimina el documento de la tarea permanentemente.
 export async function deleteTask(
   userId: string,
   areaId: string,
@@ -113,7 +129,7 @@ export async function deleteTask(
   await deleteDoc(ref);
 }
 
-// Marcar/desmarcar completada
+// Cambia solo el campo 'done' de la tarea (true/false).
 export async function toggleTask(
   userId: string,
   areaId: string,
@@ -125,6 +141,9 @@ export async function toggleTask(
 }
 
 // ─── ETIQUETAS ────────────────────────────────────────────
+// Las etiquetas son colores/nombres que el usuario puede
+// asignar a sus tareas. Se leen una sola vez (getDocs),
+// no necesitan tiempo real.
 
 export async function getLabels(userId: string): Promise<Label[]> {
   const snap = await getDocs(labelsRef(userId));

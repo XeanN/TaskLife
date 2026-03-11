@@ -77,28 +77,59 @@ miApp/
 
 ---
 
-## 🗄️ Estructura de datos en Firestore
+## 🗄️ Base de datos — Firebase Firestore
+
+### ¿Qué es Firestore?
+
+Firestore es una base de datos **NoSQL en la nube** de Google. En lugar de tablas como SQL, organiza los datos en **colecciones** (listas) y **documentos** (objetos JSON). Los datos se sincronizan en tiempo real entre la app y la nube.
+
+### Estructura de datos
 
 ```
 users/
-└── {userId}/
+└── {userId}/                     ← cada usuario tiene su propio espacio aislado
     ├── areas/
     │   └── {areaId}/             ← work | education | finance | health
     │       └── tasks/
-    │           └── {taskId}/     ← cada tarea del usuario
+    │           └── {taskId}/     ← cada tarea del usuario en esa área
     └── labels/
-        └── {labelId}/            ← etiquetas personalizadas
+        └── {labelId}/            ← etiquetas personalizadas del usuario
 ```
 
-Cada tarea guarda:
+> El `userId` es el UID que Firebase Auth asigna automáticamente al registrarse. Así cada usuario solo puede ver y modificar sus propios datos.
 
-- `title` — nombre
-- `description` — descripción opcional
-- `done` — estado completada
-- `priority` — alta | media | baja
-- `dueDate` — fecha de vencimiento
-- `labels` — arreglo de ids de etiquetas
-- `createdAt` / `updatedAt` — timestamps
+### Campos de cada tarea (`{taskId}`)
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `title` | string | Nombre de la tarea |
+| `description` | string | Descripción opcional |
+| `done` | boolean | `true` si está completada |
+| `priority` | string | `alta` \| `media` \| `baja` |
+| `dueDate` | Timestamp | Fecha de vencimiento (formato Firestore) |
+| `labels` | string[] | IDs de etiquetas asignadas |
+| `areaId` | string | Área a la que pertenece |
+| `createdAt` | Timestamp | Fecha de creación |
+| `updatedAt` | Timestamp | Última modificación |
+
+### ¿Cómo fluyen los datos en la app?
+
+```
+Firebase Console (nube)
+        ↕  tiempo real (onSnapshot)
+services/taskService.ts     ← único punto de contacto con Firestore
+        ↕
+app/area/[areaId].tsx       ← lee y escribe tareas
+app/(tabs)/areas.tsx        ← solo lee conteos por área
+```
+
+### Archivos clave de la base de datos
+
+| Archivo | Rol |
+|---|---|
+| `config/firebase.ts` | Inicializa Firebase con las credenciales del proyecto |
+| `services/taskService.ts` | Todas las operaciones CRUD de tareas y etiquetas |
+| `context/AuthContext.tsx` | Autenticación — gestiona el `userId` que se usa en todas las rutas |
 
 ---
 

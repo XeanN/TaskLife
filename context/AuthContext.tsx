@@ -1,11 +1,16 @@
+// ─── AuthContext.tsx ─────────────────────────────────────
+// Maneja toda la autenticación con Firebase Auth.
+// Expone al resto de la app: usuario actual, login,
+// registro, login con Google y logout.
+// Cualquier pantalla puede acceder con: const { user } = useAuth()
 import { auth } from "@/config/firebase";
 import { router } from "expo-router";
 import {
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut,
-  updateProfile,
+  createUserWithEmailAndPassword, // registra nuevo usuario con email
+  onAuthStateChanged, // detecta si hay sesión activa (persiste entre reinicios)
+  signInWithEmailAndPassword, // login con email y contraseña
+  signOut, // cierra sesión
+  updateProfile, // guarda el nombre del usuario en Firebase Auth
 } from "firebase/auth";
 import {
   createContext,
@@ -64,6 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, []);
 
+  // login: verifica credenciales contra Firebase Auth.
+  // Si son incorrectas, Firebase lanza un error con código específico.
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
@@ -93,6 +100,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // register: crea la cuenta en Firebase Auth y guarda el nombre
+  // con updateProfile (Firebase no guarda el nombre por defecto).
   const register = async (name: string, email: string, password: string) => {
     setIsLoading(true);
     try {
@@ -137,6 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // logout: cierra sesión en Firebase y redirige a bienvenida.
   const logout = async () => {
     await signOut(auth);
     setUser(null);
