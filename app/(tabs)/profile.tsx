@@ -1,9 +1,17 @@
 import { useAuth } from "@/context/AuthContext";
+import { subscribeToTasks } from "@/services/taskService";
 import { Ionicons } from "@expo/vector-icons";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-// ─── Opciones del menú ────────────────────────────────────
+const AREAS = [
+  { id: "work" },
+  { id: "education" },
+  { id: "finance" },
+  { id: "health" },
+] as const;
+
 const MENU_ITEMS = [
   {
     id: "notifications",
@@ -20,15 +28,42 @@ const MENU_ITEMS = [
   },
 ] as const;
 
-// ─── Stats de ejemplo ─────────────────────────────────────
-const STATS = [
-  { label: "Tareas\ncompletadas", value: "12" },
-  { label: "Racha\nactual", value: "5d" },
-  { label: "Áreas\nactivas", value: "4" },
-];
-
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
+
+  // Stats reales desde Firestore
+  const [totalDone, setTotalDone] = useState(0);
+  const [totalPending, setTotalPending] = useState(0);
+  const [activeAreas, setActiveAreas] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const counts: Record<string, { done: number; total: number }> = {};
+
+    const unsubs = AREAS.map((area) =>
+      subscribeToTasks(user.id, area.id, (tasks) => {
+        counts[area.id] = {
+          done: tasks.filter((t) => t.done).length,
+          total: tasks.length,
+        };
+
+        // Recalcular totales cada vez que cambia un área
+        const done = Object.values(counts).reduce((a, c) => a + c.done, 0);
+        const pending = Object.values(counts).reduce(
+          (a, c) => a + (c.total - c.done),
+          0,
+        );
+        const active = Object.values(counts).filter((c) => c.total > 0).length;
+
+        setTotalDone(done);
+        setTotalPending(pending);
+        setActiveAreas(active);
+      }),
+    );
+
+    return () => unsubs.forEach((u) => u());
+  }, [user]);
 
   const initials = user?.name
     ? user.name
@@ -39,17 +74,21 @@ export default function ProfileScreen() {
         .slice(0, 2)
     : "TL";
 
+  const STATS = [
+    { label: "Completadas", value: String(totalDone) },
+    { label: "Pendientes", value: String(totalPending) },
+    { label: "Áreas\nactivas", value: String(activeAreas) },
+  ];
+
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      {/* edges sin 'bottom': la tab bar ya reserva ese espacio con insets.bottom */}
+    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Header ── */}
         <Text style={styles.screenTitle}>Mi perfil</Text>
 
-        {/* ── Avatar + nombre ── */}
+        {/* ── Avatar ── */}
         <View style={styles.avatarSection}>
           <View style={styles.avatarCircle}>
             <Text style={styles.avatarText}>{initials}</Text>
@@ -70,17 +109,23 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Stats ── */}
+        {/* ── Stats reales ── */}
         <View style={styles.statsRow}>
           {STATS.map((stat, i) => (
-            <View key={i} style={styles.statItem}>
+            <View
+              key={i}
+              style={[
+                styles.statItem,
+                i < STATS.length - 1 && styles.statDivider,
+              ]}
+            >
               <Text style={styles.statValue}>{stat.value}</Text>
               <Text style={styles.statLabel}>{stat.label}</Text>
             </View>
           ))}
         </View>
 
-        {/* ── Menú opciones ── */}
+        {/* ── Menú ── */}
         <View style={styles.menuCard}>
           {MENU_ITEMS.map((item, i) => (
             <Pressable
@@ -138,7 +183,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
-  // Avatar
   avatarSection: { alignItems: "center", marginBottom: 24 },
   avatarCircle: {
     width: 88,
@@ -148,10 +192,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
-    shadowColor: C.primary,
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
   avatarText: { fontSize: 28, fontWeight: "800", color: C.white },
@@ -168,20 +208,16 @@ const styles = StyleSheet.create({
   },
   providerText: { fontSize: 12, color: C.primary, fontWeight: "600" },
 
-  // Stats
   statsRow: {
     flexDirection: "row",
     backgroundColor: C.white,
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   statItem: { flex: 1, alignItems: "center" },
+  statDivider: { borderRightWidth: 1, borderRightColor: C.border },
   statValue: {
     fontSize: 22,
     fontWeight: "800",
@@ -195,15 +231,10 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 
-  // Menu
   menuCard: {
     backgroundColor: C.white,
     borderRadius: 16,
     marginBottom: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   menuRow: {
@@ -225,7 +256,6 @@ const styles = StyleSheet.create({
   menuLabel: { flex: 1, fontSize: 15, color: C.text, fontWeight: "500" },
   pressed: { opacity: 0.7 },
 
-  // Logout
   logoutBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -239,6 +269,5 @@ const styles = StyleSheet.create({
     borderColor: "#E53E3E",
   },
   logoutText: { color: "#E53E3E", fontSize: 16, fontWeight: "700" },
-
   version: { textAlign: "center", fontSize: 12, color: "#bbb" },
 });
