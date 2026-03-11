@@ -112,7 +112,8 @@ export default function AreasScreen() {
   const doneTasks = Object.values(counts).reduce((a, c) => a + c.done, 0);
 
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView style={s.safe} edges={['top', 'left', 'right']}>
+      {/* edges sin 'bottom': la tab bar ya reserva ese espacio con insets.bottom */}
       <ScrollView
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}

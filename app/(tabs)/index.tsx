@@ -99,7 +99,8 @@ export default function HomeScreen() {
   });
 
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView style={s.safe} edges={['top', 'left', 'right']}>
+      {/* edges sin 'bottom': la tab bar ya reserva ese espacio con insets.bottom */}
       <ScrollView
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}

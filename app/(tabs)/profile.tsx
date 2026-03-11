@@ -40,7 +40,8 @@ export default function ProfileScreen() {
     : "TL";
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      {/* edges sin 'bottom': la tab bar ya reserva ese espacio con insets.bottom */}
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}

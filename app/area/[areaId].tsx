@@ -1,30 +1,31 @@
 import { useAuth } from "@/context/AuthContext";
 import {
-    createTask,
-    deleteTask,
-    Priority,
-    subscribeToTasks,
-    Task,
-    toggleTask,
-    updateTask,
+  createTask,
+  deleteTask,
+  Priority,
+  subscribeToTasks,
+  Task,
+  toggleTask,
+  updateTask,
 } from "@/services/taskService";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+// useSafeAreaInsets para posicionar el FAB sobre la nav bar del sistema
 
 // ─── Constantes ───────────────────────────────────────────
 const PRIORITIES: { value: Priority; label: string; color: string }[] = [
@@ -378,6 +379,8 @@ export default function AreaTasksScreen() {
   } = useLocalSearchParams<{ areaId: string; label: string; color: string }>();
   const color = decodeURIComponent(colorParam ?? "#3F7EA6");
   const { user } = useAuth();
+  // Altura dinámica de la nav bar: 0 en modelos sin botones, >0 en los que sí tienen
+  const insets = useSafeAreaInsets();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState<Filter>("Todas");
@@ -548,9 +551,9 @@ export default function AreaTasksScreen() {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* FAB */}
+      {/* FAB — bottom dinámico: sube sobre la nav bar si el modelo la tiene */}
       <Pressable
-        style={[ps.fab, { backgroundColor: color }]}
+        style={[ps.fab, { backgroundColor: color, bottom: insets.bottom + 16 }]}
         onPress={() => {
           setEditing(undefined);
           setModal(true);
@@ -663,7 +666,7 @@ const ps = StyleSheet.create({
   emptyHint: { fontSize: 13, color: "#ddd" },
   fab: {
     position: "absolute",
-    bottom: 24,
+    // bottom se pasa dinámico desde el componente usando insets.bottom
     right: 24,
     width: 56,
     height: 56,
