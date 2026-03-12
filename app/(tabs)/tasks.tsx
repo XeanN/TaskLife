@@ -405,7 +405,7 @@ export default function TasksScreen() {
   };
 
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView style={s.safe} edges={["top", "left", "right"]}>
       {/* ── Header ── */}
       <View style={s.header}>
         <View>
