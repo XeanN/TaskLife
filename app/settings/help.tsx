@@ -1,14 +1,15 @@
 import { useTheme } from "@/context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useState } from "react";
 import {
-    Alert,
-    Linking,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Alert,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -60,7 +61,7 @@ const CONTACT = [
 export default function HelpScreen() {
   const { theme } = useTheme();
   const s = makeStyles(theme);
-  const [open, setOpen] = require("react").useState<number | null>(null);
+  const [open, setOpen] = useState<number | null>(null);
 
   return (
     <SafeAreaView style={s.safe}>

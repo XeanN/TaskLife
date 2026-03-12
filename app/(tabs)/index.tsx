@@ -227,7 +227,7 @@ export default function HomeScreen() {
         {/* ── Nueva tarea ── */}
         <Pressable
           style={({ pressed }) => [s.addBtn, pressed && s.pressed]}
-          onPress={() => router.push("/(tabs)/tasks")}
+          onPress={() => router.push({ pathname: "/(tabs)/tasks" })}
         >
           <Ionicons name="add-circle-outline" size={22} color="#fff" />
           <Text style={s.addBtnText}>Nueva tarea</Text>
