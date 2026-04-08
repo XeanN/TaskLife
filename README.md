@@ -2,134 +2,152 @@
 
 > Organiza tu estudio, trabajo y bienestar en un solo lugar.
 
-![React Native](https://img.shields.io/badge/React_Native-0.76-61DAFB?style=flat&logo=react)
-![Expo](https://img.shields.io/badge/Expo-52-000020?style=flat&logo=expo)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=flat&logo=typescript)
-![Firebase](https://img.shields.io/badge/Firebase-Firestore-FFCA28?style=flat&logo=firebase)
+![React Native](https://img.shields.io/badge/React_Native-0.81-61DAFB?style=flat&logo=react)
+![Expo](https://img.shields.io/badge/Expo-54-000020?style=flat&logo=expo)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat&logo=typescript)
+![Firebase](https://img.shields.io/badge/Firebase-12.x-FFCA28?style=flat&logo=firebase)
+![Arquitectura](https://img.shields.io/badge/Arquitectura-MVC-purple?style=flat)
 
 ---
 
 ## 🚀 Funcionalidades
 
 - ✅ Autenticación con **email/contraseña** (Firebase Auth)
-- ✅ Autenticación con **Google** (en desarrollo)
+- ✅ Autenticación con **Google**
 - ✅ Sesión persistente — no pide login al reabrir la app
-- ✅ **Dashboard** con saludo dinámico y resumen del día
+- ✅ **Home** con grid de áreas y acceso rápido a "Mi día"
 - ✅ **Gestión de tareas** por área con CRUD completo
-- ✅ Tareas con **nombre, descripción, prioridad y fecha de vencimiento**
+- ✅ Tareas con **nombre, descripción, prioridad, fecha y etiquetas**
+- ✅ **Etiquetas personalizadas** con colores — crea las tuyas
 - ✅ **Filtros** por estado (Pendientes / Completadas / Todas)
+- ✅ **Filtro por etiqueta** dentro de cada área
 - ✅ **Ordenar** por fecha, prioridad o nombre
+- ✅ **Navegación ◄ ►** entre áreas sin volver al inicio
 - ✅ **4 áreas de vida**: Trabajo, Educación, Finanzas, Bienestar
-- ✅ **Progreso por área** con barra visual en tiempo real
-- ✅ **Perfil de usuario** con estadísticas
-- ✅ Datos sincronizados en **Firebase Firestore**
+- ✅ **Sección Completadas** colapsable dentro de cada área
+- ✅ **Modo oscuro** completo — toda la app cambia en tiempo real
+- ✅ **Perfil de usuario** con estadísticas y configuración
+- ✅ Datos sincronizados en **Firebase Firestore** en tiempo real
 - ✅ Navegación por **tabs** con Expo Router
+- ✅ Arquitectura **MVC** — código limpio y escalable
 
 ---
 
-## 🗂️ Arquitectura
+## 🗂️ Arquitectura MVC
 
-```
-miApp/
-├── app/
-│   ├── (auth)/                  # Pantallas sin tabs
-│   │   ├── _layout.tsx
-│   │   ├── welcome.tsx          # Pantalla inicial
-│   │   ├── login.tsx
-│   │   └── register.tsx
-│   ├── (tabs)/                  # Pantallas con bottom tabs
-│   │   ├── _layout.tsx
-│   │   ├── index.tsx            # Home / Dashboard
-│   │   ├── tasks.tsx            # Mis tareas
-│   │   ├── areas.tsx            # Mis áreas (grid con progreso)
-│   │   └── profile.tsx          # Perfil de usuario
-│   ├── area/
-│   │   └── [areaId].tsx         # Tareas por área (CRUD completo)
-│   ├── _layout.tsx              # Root layout con AuthProvider
-│   └── index.tsx                # Redirige según sesión
-├── config/
-│   └── firebase.ts              # Configuración Firebase
-├── components/ui/               # Componentes reutilizables
-├── constants/theme.ts           # Colores y fuentes
-├── context/
-│   └── AuthContext.tsx          # Estado global de autenticación
-├── services/
-│   └── taskService.ts           # CRUD de tareas en Firestore
-└── hooks/
-    └── useGoogleAuth.ts         # Hook para Google Sign In
-```
+TASKLIFE/
+│
+├── 📁 models/ ← MODEL (tipos puros)
+│ ├── Task.ts
+│ ├── User.ts
+│ ├── Area.ts (AREAS y PRIORITIES — fuente única)
+│ └── Label.ts
+│
+├── 📁 controllers/ ← CONTROLLER (lógica de negocio)
+│ ├── AuthController.ts
+│ ├── TaskController.ts
+│ └── LabelController.ts
+│
+├── 📁 services/ ← DATA LAYER (Firebase)
+│ ├── taskService.ts
+│ ├── labelService.ts
+│ ├── authService.ts
+│ └── storageService.ts
+│
+├── 📁 context/ ← STATE GLOBAL
+│ ├── AuthContext.tsx
+│ └── ThemeContext.tsx
+│
+├── 📁 hooks/ ← PUENTE View ↔ Controller
+│ ├── useTasks.ts
+│ ├── useLabels.ts
+│ └── useGoogleAuth.ts
+│
+├── 📁 components/ ← COMPONENTES REUTILIZABLES
+│ ├── TaskFormSheet.tsx (bottom sheet crear/editar tarea)
+│ ├── LabelSheet.tsx (bottom sheet etiquetas)
+│ └── ui/
+│ ├── ConfirmModal.tsx
+│ └── LabelBadge.tsx
+│
+├── 📁 app/ ← VIEW (solo UI)
+│ ├── (auth)/
+│ │ ├── welcome.tsx
+│ │ ├── login.tsx
+│ │ └── register.tsx
+│ ├── (tabs)/
+│ │ ├── index.tsx (Home — grid áreas + Mi día)
+│ │ ├── tasks.tsx (Lista global de tareas)
+│ │ └── profile.tsx (Perfil + modo oscuro)
+│ ├── area/
+│ │ └── [areaId].tsx (Tareas por área + nav ◄ ►)
+│ └── settings/
+│ ├── notifications.tsx
+│ ├── theme.tsx
+│ ├── privacy.tsx
+│ ├── help.tsx
+│ └── about.tsx
+│
+├── 📁 config/
+│ └── firebase.ts
+├── 📁 constants/
+│ └── theme.ts
+└── 📁 assets/
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Tecnología                     | Uso                           |
-| ------------------------------ | ----------------------------- |
-| React Native                   | Framework móvil               |
-| Expo SDK 52                    | Plataforma de desarrollo      |
-| Expo Router                    | Navegación basada en archivos |
-| TypeScript                     | Tipado estático               |
-| Firebase Auth                  | Autenticación de usuarios     |
-| Firebase Firestore             | Base de datos en tiempo real  |
-| Context API                    | Estado global                 |
-| @expo/vector-icons             | Íconos                        |
-| react-native-safe-area-context | Áreas seguras                 |
+| Tecnología                     | Versión | Uso                                       |
+| ------------------------------ | ------- | ----------------------------------------- |
+| React Native                   | 0.81    | Framework móvil                           |
+| Expo SDK                       | 54      | Plataforma de desarrollo                  |
+| Expo Router                    | 6.x     | Navegación basada en archivos             |
+| TypeScript                     | 5.9     | Tipado estático                           |
+| Firebase Auth                  | 12.x    | Autenticación de usuarios                 |
+| Firebase Firestore             | 12.x    | Base de datos en tiempo real              |
+| AsyncStorage                   | 2.2     | Persistencia local (tema, notificaciones) |
+| React Native Reanimated        | 3.x     | Animaciones fluidas                       |
+| Context API                    | —       | Estado global                             |
+| @expo/vector-icons             | 15.x    | Íconos                                    |
+| react-native-safe-area-context | 5.x     | Áreas seguras                             |
 
 ---
 
 ## 🗄️ Base de datos — Firebase Firestore
 
-### ¿Qué es Firestore?
-
-Firestore es una base de datos **NoSQL en la nube** de Google. En lugar de tablas como SQL, organiza los datos en **colecciones** (listas) y **documentos** (objetos JSON). Los datos se sincronizan en tiempo real entre la app y la nube.
-
 ### Estructura de datos
 
-```
 users/
-└── {userId}/                     ← cada usuario tiene su propio espacio aislado
-    ├── areas/
-    │   └── {areaId}/             ← work | education | finance | health
-    │       └── tasks/
-    │           └── {taskId}/     ← cada tarea del usuario en esa área
-    └── labels/
-        └── {labelId}/            ← etiquetas personalizadas del usuario
-```
+└── {userId}/
+├── areas/
+│ └── {areaId}/ ← work | education | finance | health
+│ └── tasks/
+│ └── {taskId}/
+└── labels/
+└── {labelId}/ ← etiquetas personalizadas
 
-> El `userId` es el UID que Firebase Auth asigna automáticamente al registrarse. Así cada usuario solo puede ver y modificar sus propios datos.
+### Campos de cada tarea
 
-### Campos de cada tarea (`{taskId}`)
+| Campo         | Tipo      | Descripción                 |
+| ------------- | --------- | --------------------------- |
+| `title`       | string    | Nombre de la tarea          |
+| `description` | string    | Descripción opcional        |
+| `done`        | boolean   | `true` si está completada   |
+| `priority`    | string    | `alta` \| `media` \| `baja` |
+| `dueDate`     | Timestamp | Fecha de vencimiento        |
+| `labelIds`    | string[]  | IDs de etiquetas asignadas  |
+| `areaId`      | string    | Área a la que pertenece     |
+| `createdAt`   | Timestamp | Fecha de creación           |
+| `updatedAt`   | Timestamp | Última modificación         |
 
-| Campo | Tipo | Descripción |
-|---|---|---|
-| `title` | string | Nombre de la tarea |
-| `description` | string | Descripción opcional |
-| `done` | boolean | `true` si está completada |
-| `priority` | string | `alta` \| `media` \| `baja` |
-| `dueDate` | Timestamp | Fecha de vencimiento (formato Firestore) |
-| `labels` | string[] | IDs de etiquetas asignadas |
-| `areaId` | string | Área a la que pertenece |
-| `createdAt` | Timestamp | Fecha de creación |
-| `updatedAt` | Timestamp | Última modificación |
+### Campos de cada etiqueta
 
-### ¿Cómo fluyen los datos en la app?
-
-```
-Firebase Console (nube)
-        ↕  tiempo real (onSnapshot)
-services/taskService.ts     ← único punto de contacto con Firestore
-        ↕
-app/area/[areaId].tsx       ← lee y escribe tareas
-app/(tabs)/areas.tsx        ← solo lee conteos por área
-```
-
-### Archivos clave de la base de datos
-
-| Archivo | Rol |
-|---|---|
-| `config/firebase.ts` | Inicializa Firebase con las credenciales del proyecto |
-| `services/taskService.ts` | Todas las operaciones CRUD de tareas y etiquetas |
-| `context/AuthContext.tsx` | Autenticación — gestiona el `userId` que se usa en todas las rutas |
+| Campo    | Tipo   | Descripción           |
+| -------- | ------ | --------------------- |
+| `name`   | string | Nombre de la etiqueta |
+| `color`  | string | Color en hex          |
+| `userId` | string | Usuario propietario   |
 
 ---
 
@@ -139,7 +157,7 @@ app/(tabs)/areas.tsx        ← solo lee conteos por área
 
 - Node.js 18+
 - npm o yarn
-- Expo Go o Android Studio
+- Expo Go (desarrollo) o Android Studio (build nativo)
 
 ### Pasos
 
@@ -152,18 +170,22 @@ cd TaskLife
 npm install
 
 # 3. Iniciar el proyecto
-npx expo start
+npx expo start --clear
 ```
 
-Presiona **`a`** para abrir en el emulador de Android.
+Presiona `a` para abrir en Android o `i` para iOS.
 
 ---
 
-## 🔐 Variables de entorno
+## 🔐 Configuración de Firebase
 
-Crea el archivo `config/firebase.ts` con tu configuración de Firebase:
+Crea o edita el archivo `config/firebase.ts`:
 
 ```ts
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+
 const firebaseConfig = {
   apiKey: "TU_API_KEY",
   authDomain: "TU_PROJECT.firebaseapp.com",
@@ -172,6 +194,10 @@ const firebaseConfig = {
   messagingSenderId: "TU_SENDER_ID",
   appId: "TU_APP_ID",
 };
+
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
 ```
 
 Obtén estos valores en [console.firebase.google.com](https://console.firebase.google.com) → Project Settings → Your apps.
@@ -180,26 +206,32 @@ Obtén estos valores en [console.firebase.google.com](https://console.firebase.g
 
 ## 📋 Roadmap
 
-- [x] Pantalla de bienvenida
 - [x] Autenticación con email (Firebase Auth)
+- [x] Autenticación con Google
 - [x] Sesión persistente
-- [x] Home con dashboard dinámico
-- [x] Pantalla de áreas con progreso en tiempo real
-- [x] Tareas por área con CRUD completo (Firestore)
-- [x] Filtros y ordenamiento de tareas
+- [x] Home con grid de áreas
+- [x] Tareas por área con CRUD completo
+- [x] Filtros y ordenamiento
 - [x] Prioridad y fecha de vencimiento
-- [x] Perfil de usuario
+- [x] Etiquetas personalizadas con colores
+- [x] Navegación ◄ ► entre áreas
+- [x] Sección completadas colapsable
+- [x] Modo oscuro completo
+- [x] Perfil de usuario con estadísticas
+- [x] Arquitectura MVC
 - [ ] Google Sign In nativo (build nativo)
 - [ ] Notificaciones push
 - [ ] Subtareas
-- [ ] Modo oscuro
+- [ ] Widget de pantalla de inicio
 - [ ] Publicación en Play Store
 
 ---
 
 ## 👨‍💻 Autor
 
-Desarrollado como proyecto de aprendizaje de **React Native** con Expo.
+**Angel (XeanN)** — Desarrollado como proyecto de aprendizaje de React Native con Expo y arquitectura MVC.
+
+[![GitHub](https://img.shields.io/badge/GitHub-XeanN-181717?style=flat&logo=github)](https://github.com/XeanN)
 
 ---
 
