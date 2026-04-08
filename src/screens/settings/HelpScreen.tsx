@@ -1,6 +1,7 @@
-import { useTheme } from "@/context/ThemeContext";
+import { useState } from "react";
+import { useTheme } from "../../context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { useNavigation } from '@react-navigation/native';
 import {
     Alert,
     Linking,
@@ -59,13 +60,14 @@ const CONTACT = [
 
 export default function HelpScreen() {
   const { theme } = useTheme();
+  const navigation = useNavigation<any>();
   const s = makeStyles(theme);
-  const [open, setOpen] = require("react").useState<number | null>(null);
+  const [open, setOpen] = useState<number | null>(null);
 
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
-        <Pressable onPress={() => router.back()} style={s.backBtn}>
+        <Pressable onPress={() => navigation.goBack()} style={s.backBtn}>
           <Ionicons name="chevron-back" size={24} color={theme.text} />
         </Pressable>
         <Text style={s.headerTitle}>Ayuda y soporte</Text>

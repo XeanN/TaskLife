@@ -1,4 +1,4 @@
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 import {
   createTask,
   deleteTask,
@@ -10,7 +10,7 @@ import {
 } from "@/services/taskService";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { router, useLocalSearchParams } from "expo-router";
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -372,11 +372,9 @@ const fm = StyleSheet.create({
 
 // ─── Pantalla principal ───────────────────────────────────
 export default function AreaTasksScreen() {
-  const {
-    areaId,
-    label,
-    color: colorParam,
-  } = useLocalSearchParams<{ areaId: string; label: string; color: string }>();
+  const route = useRoute();
+  const { areaId, label, color: colorParam } = route.params as { areaId: string; label: string; color: string };
+  const navigation = useNavigation<any>();
   const color = decodeURIComponent(colorParam ?? "#3F7EA6");
   const { user } = useAuth();
   // Altura dinámica de la nav bar: 0 en modelos sin botones, >0 en los que sí tienen
@@ -463,7 +461,7 @@ export default function AreaTasksScreen() {
     <SafeAreaView style={[ps.safe, { backgroundColor: "#E9ECEF" }]}>
       {/* Header */}
       <View style={[ps.header, { backgroundColor: color }]}>
-        <Pressable onPress={() => router.back()} style={ps.backBtn}>
+        <Pressable onPress={() => navigation.goBack()} style={ps.backBtn}>
           <Ionicons name="chevron-back" size={24} color="#fff" />
         </Pressable>
         <Text style={ps.headerTitle}>{label}</Text>

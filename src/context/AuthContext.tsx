@@ -4,7 +4,6 @@
 // registro, login con Google y logout.
 // Cualquier pantalla puede acceder con: const { user } = useAuth()
 import { auth } from "@/config/firebase";
-import { router } from "expo-router";
 import {
   createUserWithEmailAndPassword, // registra nuevo usuario con email
   onAuthStateChanged, // detecta si hay sesión activa (persiste entre reinicios)
@@ -85,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: fbUser.displayName ?? "Usuario",
         provider: "email",
       });
-      router.replace("/(tabs)");
+      // navigation handled automatically by RootNavigator
     } catch (error: any) {
       if (
         error.code === "auth/user-not-found" ||
@@ -117,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name,
         provider: "email",
       });
-      router.replace("/(tabs)");
+      // navigation handled automatically by RootNavigator
     } catch (error: any) {
       if (error.code === "auth/email-already-in-use") {
         throw new Error("Este correo ya está registrado");
@@ -138,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         picture: googleUser.picture,
         provider: "google",
       });
-      router.replace("/(tabs)");
+      // navigation handled automatically by RootNavigator
     } catch {
       throw new Error("Error al iniciar sesión con Google");
     } finally {
@@ -150,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     await signOut(auth);
     setUser(null);
-    router.replace("/(auth)/welcome");
+      // navigation handled automatically by RootNavigator
   };
 
   return (

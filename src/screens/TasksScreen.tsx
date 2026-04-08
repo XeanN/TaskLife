@@ -1,4 +1,5 @@
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "../context/AuthContext";
+import { useTheme, Theme } from "../context/ThemeContext";
 import {
   createTask,
   deleteTask,
@@ -8,7 +9,7 @@ import {
   toggleTask,
 } from "@/services/taskService";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { useNavigation } from '@react-navigation/native';
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -52,6 +53,9 @@ function TaskCard({
   onDelete: () => void;
   onPressArea: () => void;
 }) {
+  const { theme } = useTheme();
+  const tc = useMemo(() => createTaskCardStyles(theme), [theme]);
+
   const p = PRIORITIES.find((x) => x.value === task.priority)!;
   const overdue =
     task.dueDate && !task.done && new Date(task.dueDate) < new Date();
@@ -65,7 +69,7 @@ function TaskCard({
         <Ionicons
           name={task.done ? "checkmark-circle" : "ellipse-outline"}
           size={24}
-          color={task.done ? task.areaColor : "#ccc"}
+          color={task.done ? task.areaColor : theme.textSecond}
         />
       </Pressable>
 
@@ -92,16 +96,16 @@ function TaskCard({
             <View
               style={[
                 tc.badge,
-                { backgroundColor: overdue ? "#FEE2E2" : "#F0F0F0" },
+                { backgroundColor: overdue ? "#FEE2E2" : theme.border },
               ]}
             >
               <Ionicons
                 name="calendar-outline"
                 size={10}
-                color={overdue ? "#E53E3E" : "#888"}
+                color={overdue ? "#E53E3E" : theme.textSecond}
               />
               <Text
-                style={[tc.badgeText, { color: overdue ? "#E53E3E" : "#888" }]}
+                style={[tc.badgeText, { color: overdue ? "#E53E3E" : theme.textSecond }]}
               >
                 {new Date(task.dueDate).toLocaleDateString("es-ES", {
                   day: "numeric",
@@ -124,17 +128,17 @@ function TaskCard({
         style={tc.menu}
         hitSlop={8}
       >
-        <Ionicons name="ellipsis-vertical" size={18} color="#ccc" />
+        <Ionicons name="ellipsis-vertical" size={18} color={theme.textSecond} />
       </Pressable>
     </Pressable>
   );
 }
 
-const tc = StyleSheet.create({
+const createTaskCardStyles = (theme: Theme) => StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: theme.card,
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
@@ -143,9 +147,9 @@ const tc = StyleSheet.create({
   },
   check: { padding: 2 },
   body: { flex: 1 },
-  title: { fontSize: 14, fontWeight: "600", color: "#1A1A2E", marginBottom: 4 },
-  done: { textDecorationLine: "line-through", color: "#aaa" },
-  desc: { fontSize: 12, color: "#6B7280", marginBottom: 6 },
+  title: { fontSize: 14, fontWeight: "600", color: theme.text, marginBottom: 4 },
+  done: { textDecorationLine: "line-through", color: theme.textSecond },
+  desc: { fontSize: 12, color: theme.textSecond, marginBottom: 6 },
   meta: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
   badge: {
     flexDirection: "row",
@@ -169,6 +173,8 @@ function QuickTaskModal({
   onClose: () => void;
   onSave: (areaId: string, title: string, priority: Priority) => void;
 }) {
+  const { theme } = useTheme();
+  const qm = useMemo(() => createModalStyles(theme), [theme]);
   const [title, setTitle] = useState("");
   const [areaId, setAreaId] = useState<string>("work");
   const [priority, setPriority] = useState<Priority>("media");
@@ -196,7 +202,7 @@ function QuickTaskModal({
           <TextInput
             style={qm.input}
             placeholder="Nombre de la tarea"
-            placeholderTextColor="#aaa"
+            placeholderTextColor={theme.textSecond}
             value={title}
             onChangeText={setTitle}
             autoFocus
@@ -261,14 +267,14 @@ function QuickTaskModal({
   );
 }
 
-const qm = StyleSheet.create({
+const createModalStyles = (theme: Theme) => StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: "flex-end",
     backgroundColor: "rgba(0,0,0,0.4)",
   },
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: theme.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
@@ -277,41 +283,41 @@ const qm = StyleSheet.create({
   heading: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#1A1A2E",
+    color: theme.text,
     marginBottom: 16,
   },
   input: {
-    backgroundColor: "#F5F5F5",
+    backgroundColor: theme.inputBg,
     borderRadius: 12,
     padding: 14,
     fontSize: 15,
-    color: "#1A1A2E",
+    color: theme.text,
     marginBottom: 16,
   },
-  label: { fontSize: 13, fontWeight: "600", color: "#6B7280", marginBottom: 8 },
+  label: { fontSize: 13, fontWeight: "600", color: theme.textSecond, marginBottom: 8 },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: "#F0F0F0",
+    backgroundColor: theme.border,
   },
-  chipText: { fontSize: 13, color: "#6B7280", fontWeight: "500" },
+  chipText: { fontSize: 13, color: theme.textSecond, fontWeight: "500" },
   buttons: { flexDirection: "row", gap: 12, marginTop: 4 },
   cancelBtn: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
-    backgroundColor: "#F5F5F5",
+    backgroundColor: theme.inputBg,
   },
-  cancelText: { fontSize: 15, color: "#6B7280", fontWeight: "600" },
+  cancelText: { fontSize: 15, color: theme.textSecond, fontWeight: "600" },
   saveBtn: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
-    backgroundColor: "#3F7EA6",
+    backgroundColor: theme.primary,
   },
   saveText: { fontSize: 15, color: "#fff", fontWeight: "700" },
 });
@@ -319,6 +325,9 @@ const qm = StyleSheet.create({
 // ─── Pantalla principal ───────────────────────────────────
 export default function TasksScreen() {
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const s = useMemo(() => createScreenStyles(theme), [theme]);
+  const navigation = useNavigation<any>();
   const [allTasks, setAllTasks] = useState<Record<string, Task[]>>({});
   const [areaFilter, setAreaFilter] = useState<AreaFilter>("all");
   const [showDone, setShowDone] = useState(false);
@@ -399,9 +408,11 @@ export default function TasksScreen() {
   const goToArea = (areaId: string) => {
     const area = AREAS.find((a) => a.id === areaId);
     if (!area) return;
-    router.push(
-      `/area/${area.id}?label=${area.label}&color=${encodeURIComponent(area.color)}`,
-    );
+    navigation.navigate('Area', {
+      areaId: area.id,
+      label: area.label,
+      color: area.color,
+    });
   };
 
   return (
@@ -418,9 +429,9 @@ export default function TasksScreen() {
           <Ionicons
             name={showDone ? "eye-outline" : "eye-off-outline"}
             size={18}
-            color={showDone ? "#3F7EA6" : "#aaa"}
+            color={showDone ? theme.primary : theme.textSecond}
           />
-          <Text style={[s.doneToggleText, showDone && { color: "#3F7EA6" }]}>
+          <Text style={[s.doneToggleText, showDone && { color: theme.primary }]}>
             {showDone ? "Ocultar" : "Ver"} completadas
           </Text>
         </Pressable>
@@ -477,7 +488,7 @@ export default function TasksScreen() {
             <Ionicons
               name="checkmark-done-circle-outline"
               size={56}
-              color="#ccc"
+              color={theme.border}
             />
             <Text style={s.emptyText}>No hay tareas aquí</Text>
             <Text style={s.emptyHint}>Toca + para agregar una</Text>
@@ -501,8 +512,8 @@ export default function TasksScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#E9ECEF" },
+const createScreenStyles = (theme: Theme) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: theme.bg },
 
   header: {
     flexDirection: "row",
@@ -512,19 +523,19 @@ const s = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 12,
   },
-  title: { fontSize: 22, fontWeight: "800", color: "#1A1A2E" },
-  subtitle: { fontSize: 13, color: "#6B7280", marginTop: 2 },
+  title: { fontSize: 22, fontWeight: "800", color: theme.text },
+  subtitle: { fontSize: 13, color: theme.textSecond, marginTop: 2 },
   doneToggle: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#fff",
+    backgroundColor: theme.card,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 20,
     elevation: 1,
   },
-  doneToggleText: { fontSize: 11, color: "#aaa", fontWeight: "600" },
+  doneToggleText: { fontSize: 11, color: theme.textSecond, fontWeight: "600" },
 
   filterScroll: {
     flexDirection: "row",
@@ -537,18 +548,18 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: "#fff",
+    backgroundColor: theme.card,
     borderWidth: 1,
-    borderColor: "#E0E0E0",
+    borderColor: theme.border,
   },
-  filterChipActive: { backgroundColor: "#3F7EA6", borderColor: "#3F7EA6" },
-  filterText: { fontSize: 13, color: "#6B7280", fontWeight: "500" },
+  filterChipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
+  filterText: { fontSize: 13, color: theme.textSecond, fontWeight: "500" },
   filterTextActive: { color: "#fff" },
 
   list: { paddingHorizontal: 20, paddingBottom: 100, paddingTop: 4 },
   empty: { alignItems: "center", paddingTop: 60, gap: 8 },
-  emptyText: { fontSize: 16, color: "#ccc", fontWeight: "600" },
-  emptyHint: { fontSize: 13, color: "#ddd" },
+  emptyText: { fontSize: 16, color: theme.textSecond, fontWeight: "600" },
+  emptyHint: { fontSize: 13, color: theme.textSecond },
 
   fab: {
     position: "absolute",
@@ -557,7 +568,7 @@ const s = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#3F7EA6",
+    backgroundColor: theme.primary,
     alignItems: "center",
     justifyContent: "center",
     elevation: 6,

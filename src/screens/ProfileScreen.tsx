@@ -1,8 +1,8 @@
-import { useAuth } from "@/context/AuthContext";
-import { useTheme } from "@/context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import { subscribeToTasks } from "@/services/taskService";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,36 +19,37 @@ const MENU_ITEMS = [
     id: "notifications",
     icon: "notifications-outline",
     label: "Notificaciones",
-    route: "/settings/notifications",
+    route: "Notifications",
   },
   {
     id: "theme",
     icon: "color-palette-outline",
     label: "Tema de la app",
-    route: "/settings/theme",
+    route: "Theme",
   },
   {
     id: "privacy",
     icon: "shield-checkmark-outline",
     label: "Privacidad",
-    route: "/settings/privacy",
+    route: "Privacy",
   },
   {
     id: "help",
     icon: "help-circle-outline",
     label: "Ayuda y soporte",
-    route: "/settings/help",
+    route: "Help",
   },
   {
     id: "about",
     icon: "information-circle-outline",
     label: "Acerca de TaskLife",
-    route: "/settings/about",
+    route: "About",
   },
 ] as const;
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
+  const navigation = useNavigation<any>();
   const { theme } = useTheme();
 
   const [totalDone, setTotalDone] = useState(0);
@@ -143,7 +144,7 @@ export default function ProfileScreen() {
                 i > 0 && s.menuBorder,
                 pressed && s.pressed,
               ]}
-              onPress={() => router.push(item.route as any)}
+              onPress={() => navigation.navigate("Settings", { screen: item.route })}
             >
               <View style={s.menuIconWrapper}>
                 <Ionicons
@@ -174,7 +175,7 @@ export default function ProfileScreen() {
 }
 
 const makeStyles = (
-  t: ReturnType<typeof import("@/context/ThemeContext").useTheme>["theme"],
+  t: ReturnType<typeof import("../context/ThemeContext").useTheme>["theme"],
 ) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: t.bg },

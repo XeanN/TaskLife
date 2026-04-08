@@ -1,7 +1,7 @@
-import { useTheme } from "@/context/ThemeContext";
+import { useTheme } from "../../context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router } from "expo-router";
+import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -29,6 +29,7 @@ const NOTIF_ITEMS = [
 
 export default function NotificationsScreen() {
   const { theme } = useTheme();
+  const navigation = useNavigation<any>();
   const s = makeStyles(theme);
 
   const [prefs, setPrefs] = useState<Record<string, boolean>>({
@@ -52,7 +53,7 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
-        <Pressable onPress={() => router.back()} style={s.backBtn}>
+        <Pressable onPress={() => navigation.goBack()} style={s.backBtn}>
           <Ionicons name="chevron-back" size={24} color={theme.text} />
         </Pressable>
         <Text style={s.headerTitle}>Notificaciones</Text>

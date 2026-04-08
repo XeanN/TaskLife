@@ -1,4 +1,4 @@
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 
 // ─────────────────────────────────────────────────────────
 // VERSIÓN DE DESARROLLO - simula login con Google

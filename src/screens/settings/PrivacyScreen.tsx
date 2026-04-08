@@ -1,6 +1,6 @@
-import { useTheme } from "@/context/ThemeContext";
+import { useTheme } from "../../context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { useNavigation } from '@react-navigation/native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -34,12 +34,13 @@ const SECTIONS = [
 
 export default function PrivacyScreen() {
   const { theme } = useTheme();
+  const navigation = useNavigation<any>();
   const s = makeStyles(theme);
 
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
-        <Pressable onPress={() => router.back()} style={s.backBtn}>
+        <Pressable onPress={() => navigation.goBack()} style={s.backBtn}>
           <Ionicons name="chevron-back" size={24} color={theme.text} />
         </Pressable>
         <Text style={s.headerTitle}>Privacidad</Text>
