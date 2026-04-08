@@ -1,25 +1,27 @@
+import { useTheme } from "@/context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 
 export default function TabLayout() {
+  const { theme } = useTheme();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#3F7EA6",
-        tabBarInactiveTintColor: "#aaa",
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: theme.textThird,
         tabBarStyle: {
-          backgroundColor: "#fff",
-          borderTopWidth: 0,
-          elevation: 10,
-          shadowColor: "#000",
-          shadowOpacity: 0.08,
-          shadowRadius: 12,
-          shadowOffset: { width: 0, height: -3 },
+          backgroundColor: theme.tabBar,
+          borderTopWidth: 1,
+          borderTopColor: theme.border,
           height: 62,
           paddingBottom: 8,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "600",
+        },
       }}
     >
       <Tabs.Screen
@@ -49,10 +51,6 @@ export default function TabLayout() {
           ),
         }}
       />
-
-      {/* Ocultar tabs que ya no van en la barra */}
-      <Tabs.Screen name="areas" options={{ href: null }} />
-      <Tabs.Screen name="explore" options={{ href: null }} />
     </Tabs>
   );
 }

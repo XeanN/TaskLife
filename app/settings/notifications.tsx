@@ -1,12 +1,22 @@
 import { useTheme } from "@/context/ThemeContext";
+import {
+  DEFAULT_NOTIF_PREFS,
+  getNotifPreferences,
+  NotifPrefs,
+  saveNotifPreferences,
+} from "@/services/storageService";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const NOTIF_ITEMS = [
+const NOTIF_ITEMS: {
+  id: keyof NotifPrefs;
+  icon: string;
+  label: string;
+  hint: string;
+}[] = [
   {
     id: "tasks_due",
     icon: "alarm-outline",
@@ -25,32 +35,27 @@ const NOTIF_ITEMS = [
     label: "Tareas completadas",
     hint: "Confirmación al marcar una tarea como hecha",
   },
-] as const;
+];
 
 export default function NotificationsScreen() {
   const { theme } = useTheme();
   const s = makeStyles(theme);
 
-  const [prefs, setPrefs] = useState<Record<string, boolean>>({
-    tasks_due: true,
-    daily_recap: false,
-    completed: false,
-  });
+  const [prefs, setPrefs] = useState<NotifPrefs>(DEFAULT_NOTIF_PREFS);
 
   useEffect(() => {
-    AsyncStorage.getItem("notif_prefs").then((val) => {
-      if (val) setPrefs(JSON.parse(val));
-    });
+    getNotifPreferences().then(setPrefs);
   }, []);
 
-  const toggle = async (id: string) => {
+  const toggle = async (id: keyof NotifPrefs) => {
     const next = { ...prefs, [id]: !prefs[id] };
     setPrefs(next);
-    await AsyncStorage.setItem("notif_prefs", JSON.stringify(next));
+    await saveNotifPreferences(next);
   };
 
   return (
     <SafeAreaView style={s.safe}>
+      {/* Header */}
       <View style={s.header}>
         <Pressable onPress={() => router.back()} style={s.backBtn}>
           <Ionicons name="chevron-back" size={24} color={theme.text} />
@@ -61,15 +66,26 @@ export default function NotificationsScreen() {
       <View style={s.content}>
         <Text style={s.subtitle}>Elige qué notificaciones quieres recibir</Text>
 
-        <View style={s.card}>
+        <View
+          style={[
+            s.card,
+            { backgroundColor: theme.card, borderColor: theme.border },
+          ]}
+        >
           {NOTIF_ITEMS.map((item, i) => (
-            <View key={item.id} style={[s.row, i > 0 && s.border]}>
+            <View
+              key={item.id}
+              style={[
+                s.row,
+                i > 0 && { borderTopWidth: 1, borderTopColor: theme.border },
+              ]}
+            >
               <View
                 style={[
                   s.iconBox,
                   {
                     backgroundColor: prefs[item.id]
-                      ? theme.primary + "22"
+                      ? theme.primaryLight
                       : theme.inputBg,
                   },
                 ]}
@@ -81,26 +97,30 @@ export default function NotificationsScreen() {
                 />
               </View>
               <View style={s.info}>
-                <Text style={s.label}>{item.label}</Text>
-                <Text style={s.hint}>{item.hint}</Text>
+                <Text style={[s.label, { color: theme.text }]}>
+                  {item.label}
+                </Text>
+                <Text style={[s.hint, { color: theme.textSecond }]}>
+                  {item.hint}
+                </Text>
               </View>
               <Switch
                 value={prefs[item.id]}
                 onValueChange={() => toggle(item.id)}
-                trackColor={{ false: "#ddd", true: theme.primary }}
+                trackColor={{ false: theme.border, true: theme.primary }}
                 thumbColor="#fff"
               />
             </View>
           ))}
         </View>
 
-        <View style={s.noteBox}>
+        <View style={[s.noteBox, { backgroundColor: theme.inputBg }]}>
           <Ionicons
             name="information-circle-outline"
             size={16}
             color={theme.textSecond}
           />
-          <Text style={s.noteText}>
+          <Text style={[s.noteText, { color: theme.textSecond }]}>
             Las notificaciones push requieren permisos del sistema. Puedes
             activarlas desde Configuración de tu teléfono.
           </Text>
@@ -110,7 +130,7 @@ export default function NotificationsScreen() {
   );
 }
 
-const makeStyles = (t: any) =>
+const makeStyles = (t: ReturnType<typeof useTheme>["theme"]) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: t.bg },
     header: {
@@ -120,20 +140,24 @@ const makeStyles = (t: any) =>
       paddingVertical: 14,
       gap: 8,
       backgroundColor: t.card,
-      elevation: 2,
+      borderBottomWidth: 1,
+      borderBottomColor: t.border,
     },
     backBtn: { padding: 4 },
     headerTitle: { fontSize: 18, fontWeight: "800", color: t.text },
-    content: { padding: 20 },
-    subtitle: { fontSize: 14, color: t.textSecond, marginBottom: 20 },
+    content: { padding: 20, gap: 16 },
+    subtitle: { fontSize: 14, color: t.textSecond },
     card: {
-      backgroundColor: t.card,
       borderRadius: 16,
-      marginBottom: 16,
-      elevation: 2,
+      borderWidth: 1,
+      overflow: "hidden",
     },
-    row: { flexDirection: "row", alignItems: "center", padding: 16, gap: 12 },
-    border: { borderTopWidth: 1, borderTopColor: t.border },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 16,
+      gap: 12,
+    },
     iconBox: {
       width: 40,
       height: 40,
@@ -142,14 +166,13 @@ const makeStyles = (t: any) =>
       justifyContent: "center",
     },
     info: { flex: 1 },
-    label: { fontSize: 15, fontWeight: "600", color: t.text, marginBottom: 2 },
-    hint: { fontSize: 12, color: t.textSecond, lineHeight: 16 },
+    label: { fontSize: 15, fontWeight: "600", marginBottom: 2 },
+    hint: { fontSize: 12, lineHeight: 16 },
     noteBox: {
       flexDirection: "row",
       gap: 8,
-      backgroundColor: t.inputBg,
       borderRadius: 12,
       padding: 14,
     },
-    noteText: { flex: 1, fontSize: 12, color: t.textSecond, lineHeight: 18 },
+    noteText: { flex: 1, fontSize: 12, lineHeight: 18 },
   });

@@ -6,29 +6,29 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const SECTIONS = [
   {
-    title: "Datos que recopilamos",
     icon: "server-outline",
+    title: "Datos que recopilamos",
     body: "TaskLife recopila únicamente los datos que tú ingresas: tu correo electrónico, nombre, y las tareas que creas. No recopilamos datos de ubicación, contactos ni información sensible del dispositivo.",
   },
   {
-    title: "Cómo usamos tus datos",
     icon: "shield-outline",
+    title: "Cómo usamos tus datos",
     body: "Tus datos se usan exclusivamente para brindarte el servicio de gestión de tareas. No vendemos, compartimos ni cedemos tu información a terceros bajo ninguna circunstancia.",
   },
   {
-    title: "Almacenamiento seguro",
     icon: "lock-closed-outline",
+    title: "Almacenamiento seguro",
     body: "Toda tu información se almacena en Firebase (Google Cloud), protegida con autenticación segura. Solo tú puedes acceder a tus datos a través de tu cuenta.",
   },
   {
-    title: "Eliminación de datos",
     icon: "trash-outline",
-    body: "Puedes eliminar tu cuenta y todos tus datos en cualquier momento desde la sección de configuración o contactándonos directamente. La eliminación es permanente e irreversible.",
+    title: "Eliminación de datos",
+    body: "Puedes eliminar tu cuenta y todos tus datos en cualquier momento contactándonos directamente. La eliminación es permanente e irreversible.",
   },
   {
-    title: "Contacto",
     icon: "mail-outline",
-    body: "Si tienes dudas sobre tu privacidad o el manejo de tus datos, escríbenos a: soporte@tasklife.app",
+    title: "Contacto",
+    body: "Si tienes dudas sobre tu privacidad escríbenos a: soporte@tasklife.app",
   },
 ];
 
@@ -49,35 +49,48 @@ export default function PrivacyScreen() {
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={s.intro}>
-          En TaskLife tu privacidad es nuestra prioridad. Aquí te explicamos de
-          forma clara cómo manejamos tu información.
+        <Text style={[s.intro, { color: theme.textSecond }]}>
+          En TaskLife tu privacidad es nuestra prioridad.
         </Text>
-        <Text style={s.updated}>Última actualización: Marzo 2026</Text>
+        <Text style={[s.updated, { color: theme.textThird }]}>
+          Última actualización: Enero 2026
+        </Text>
 
         {SECTIONS.map((sec, i) => (
-          <View key={i} style={s.card}>
+          <View
+            key={i}
+            style={[
+              s.card,
+              { backgroundColor: theme.card, borderColor: theme.border },
+            ]}
+          >
             <View style={s.cardHeader}>
-              <View style={s.iconBox}>
+              <View style={[s.iconBox, { backgroundColor: theme.iconBg }]}>
                 <Ionicons
                   name={sec.icon as any}
                   size={20}
                   color={theme.primary}
                 />
               </View>
-              <Text style={s.cardTitle}>{sec.title}</Text>
+              <Text style={[s.cardTitle, { color: theme.text }]}>
+                {sec.title}
+              </Text>
             </View>
-            <Text style={s.cardBody}>{sec.body}</Text>
+            <Text style={[s.cardBody, { color: theme.textSecond }]}>
+              {sec.body}
+            </Text>
           </View>
         ))}
 
-        <Text style={s.footer}>TaskLife v1.0.0 · tasklife.app</Text>
+        <Text style={[s.footer, { color: theme.textThird }]}>
+          TaskLife v1.0.0 · tasklife.app
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const makeStyles = (t: any) =>
+const makeStyles = (t: ReturnType<typeof useTheme>["theme"]) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: t.bg },
     header: {
@@ -87,50 +100,29 @@ const makeStyles = (t: any) =>
       paddingVertical: 14,
       gap: 8,
       backgroundColor: t.card,
-      elevation: 2,
+      borderBottomWidth: 1,
+      borderBottomColor: t.border,
     },
     backBtn: { padding: 4 },
     headerTitle: { fontSize: 18, fontWeight: "800", color: t.text },
-    content: { padding: 20, paddingBottom: 40 },
-    intro: {
-      fontSize: 14,
-      color: t.textSecond,
-      lineHeight: 22,
-      marginBottom: 6,
-    },
-    updated: {
-      fontSize: 11,
-      color: t.textSecond,
-      marginBottom: 20,
-      fontStyle: "italic",
-    },
+    content: { padding: 20, paddingBottom: 40, gap: 12 },
+    intro: { fontSize: 14, lineHeight: 22 },
+    updated: { fontSize: 11, fontStyle: "italic" },
     card: {
-      backgroundColor: t.card,
       borderRadius: 16,
       padding: 16,
-      marginBottom: 12,
-      elevation: 2,
-    },
-    cardHeader: {
-      flexDirection: "row",
-      alignItems: "center",
+      borderWidth: 1,
       gap: 10,
-      marginBottom: 10,
     },
+    cardHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
     iconBox: {
       width: 36,
       height: 36,
       borderRadius: 10,
-      backgroundColor: t.iconBg,
       alignItems: "center",
       justifyContent: "center",
     },
-    cardTitle: { fontSize: 15, fontWeight: "700", color: t.text, flex: 1 },
-    cardBody: { fontSize: 13, color: t.textSecond, lineHeight: 20 },
-    footer: {
-      textAlign: "center",
-      fontSize: 11,
-      color: t.textSecond,
-      marginTop: 8,
-    },
+    cardTitle: { fontSize: 15, fontWeight: "700", flex: 1 },
+    cardBody: { fontSize: 13, lineHeight: 20 },
+    footer: { textAlign: "center", fontSize: 11, marginTop: 8 },
   });
