@@ -231,8 +231,6 @@ Obtén estos valores en [console.firebase.google.com](https://console.firebase.g
 
 **Angel (XeanN)** — Desarrollado como proyecto de aprendizaje de React Native con Expo y arquitectura MVC.
 
-[![GitHub](https://img.shields.io/badge/GitHub-XeanN-181717?style=flat&logo=github)](https://github.com/XeanN)
-
 ---
 
 ## 📄 Licencia
