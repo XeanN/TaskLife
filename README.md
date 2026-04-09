@@ -2,9 +2,9 @@
 
 > Organiza tu estudio, trabajo y bienestar en un solo lugar.
 
-![React Native](https://img.shields.io/badge/React_Native-0.76-61DAFB?style=flat&logo=react)
-![Expo](https://img.shields.io/badge/Expo-52-000020?style=flat&logo=expo)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=flat&logo=typescript)
+![React Native](https://img.shields.io/badge/React_Native-0.81-61DAFB?style=flat&logo=react)
+![Expo](https://img.shields.io/badge/Expo-54-000020?style=flat&logo=expo)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat&logo=typescript)
 ![Firebase](https://img.shields.io/badge/Firebase-Firestore-FFCA28?style=flat&logo=firebase)
 
 ---
@@ -23,41 +23,62 @@
 - ✅ **Progreso por área** con barra visual en tiempo real
 - ✅ **Perfil de usuario** con estadísticas
 - ✅ Datos sincronizados en **Firebase Firestore**
-- ✅ Navegación por **tabs** con Expo Router
+- ✅ Navegación por **tabs** con React Navigation
 
 ---
 
 ## 🗂️ Arquitectura
 
 ```
-miApp/
-├── app/
-│   ├── (auth)/                  # Pantallas sin tabs
-│   │   ├── _layout.tsx
-│   │   ├── welcome.tsx          # Pantalla inicial
-│   │   ├── login.tsx
-│   │   └── register.tsx
-│   ├── (tabs)/                  # Pantallas con bottom tabs
-│   │   ├── _layout.tsx
-│   │   ├── index.tsx            # Home / Dashboard
-│   │   ├── tasks.tsx            # Mis tareas
-│   │   ├── areas.tsx            # Mis áreas (grid con progreso)
-│   │   └── profile.tsx          # Perfil de usuario
-│   ├── area/
-│   │   └── [areaId].tsx         # Tareas por área (CRUD completo)
-│   ├── _layout.tsx              # Root layout con AuthProvider
-│   └── index.tsx                # Redirige según sesión
-├── config/
-│   └── firebase.ts              # Configuración Firebase
-├── components/ui/               # Componentes reutilizables
-├── constants/theme.ts           # Colores y fuentes
-├── context/
-│   └── AuthContext.tsx          # Estado global de autenticación
-├── services/
-│   └── taskService.ts           # CRUD de tareas en Firestore
-└── hooks/
-    └── useGoogleAuth.ts         # Hook para Google Sign In
+TaskLife/
+├── App.js                       # Monta providers y navegación
+├── index.js                     # Entry point de Expo
+├── src/
+│   ├── components/              # UI reutilizable
+│   ├── config/
+│   │   └── firebase.ts          # Inicialización de Firebase
+│   ├── constants/
+│   │   └── theme.ts             # Tokens visuales
+│   ├── context/
+│   │   ├── AuthContext.tsx      # Estado y acciones de autenticación
+│   │   └── ThemeContext.tsx     # Tema claro/oscuro
+│   ├── hooks/                   # Hooks auxiliares
+│   ├── navigation/
+│   │   ├── AuthStack.tsx        # Flujo de autenticación
+│   │   ├── MainTabs.tsx         # Tabs principales
+│   │   ├── RootNavigator.tsx    # Decide si entra por auth o app
+│   │   └── SettingsStack.tsx    # Navegación de ajustes
+│   ├── screens/                 # Pantallas
+│   │   ├── WelcomeScreen.tsx
+│   │   ├── LoginScreen.tsx
+│   │   ├── RegisterScreen.tsx
+│   │   ├── HomeScreen.tsx
+│   │   ├── TasksScreen.tsx
+│   │   ├── ProfileScreen.tsx
+│   │   ├── AreaScreen.tsx
+│   │   └── settings/
+│   │       ├── AboutScreen.tsx
+│   │       ├── HelpScreen.tsx
+│   │       ├── NotificationsScreen.tsx
+│   │       ├── PrivacyScreen.tsx
+│   │       └── ThemeScreen.tsx
+│   └── services/
+│       └── taskService.ts       # Acceso centralizado a Firestore
+└── assets/
+        └── images/
 ```
+
+### Sustento arquitectónico
+
+La rama `juan` no implementa MVC puro. Lo que sí existe es una arquitectura por capas con separación clara de responsabilidades:
+
+- `src/screens/` actúa como capa de presentación e interacción con el usuario.
+- `src/components/` contiene UI reutilizable sin lógica de persistencia.
+- `src/services/taskService.ts` centraliza el acceso a Firestore, por lo que las pantallas no hablan con Firebase directamente.
+- `src/context/AuthContext.tsx` y `src/context/ThemeContext.tsx` concentran estado global y reglas compartidas.
+- `src/navigation/` resuelve el flujo de pantallas y la transición entre autenticación, tabs y ajustes.
+
+Por eso, el término más preciso para documentar el proyecto es **arquitectura por capas orientada a pantallas** o **separación presentation/state/service**, no MVC clásico.
 
 ---
 
@@ -66,8 +87,8 @@ miApp/
 | Tecnología                     | Uso                           |
 | ------------------------------ | ----------------------------- |
 | React Native                   | Framework móvil               |
-| Expo SDK 52                    | Plataforma de desarrollo      |
-| Expo Router                    | Navegación basada en archivos |
+| Expo SDK 54                    | Plataforma de desarrollo      |
+| React Navigation               | Navegación por stacks y tabs   |
 | TypeScript                     | Tipado estático               |
 | Firebase Auth                  | Autenticación de usuarios     |
 | Firebase Firestore             | Base de datos en tiempo real  |
@@ -117,19 +138,21 @@ users/
 ```
 Firebase Console (nube)
         ↕  tiempo real (onSnapshot)
-services/taskService.ts     ← único punto de contacto con Firestore
+src/services/taskService.ts ← único punto de contacto con Firestore
         ↕
-app/area/[areaId].tsx       ← lee y escribe tareas
-app/(tabs)/areas.tsx        ← solo lee conteos por área
+src/screens/AreaScreen.tsx  ← lee y escribe tareas por área
+src/screens/HomeScreen.tsx  ← resume tareas de todas las áreas
+src/screens/TasksScreen.tsx ← filtra, crea y actualiza tareas
 ```
 
 ### Archivos clave de la base de datos
 
 | Archivo | Rol |
 |---|---|
-| `config/firebase.ts` | Inicializa Firebase con las credenciales del proyecto |
-| `services/taskService.ts` | Todas las operaciones CRUD de tareas y etiquetas |
-| `context/AuthContext.tsx` | Autenticación — gestiona el `userId` que se usa en todas las rutas |
+| `src/config/firebase.ts` | Inicializa Firebase con las credenciales del proyecto |
+| `src/services/taskService.ts` | Todas las operaciones CRUD de tareas y etiquetas |
+| `src/context/AuthContext.tsx` | Autenticación — gestiona el `userId` que se usa en todas las rutas |
+| `src/navigation/RootNavigator.tsx` | Decide qué flujo mostrar según la sesión |
 
 ---
 
@@ -161,7 +184,7 @@ Presiona **`a`** para abrir en el emulador de Android.
 
 ## 🔐 Variables de entorno
 
-Crea el archivo `config/firebase.ts` con tu configuración de Firebase:
+Crea el archivo `src/config/firebase.ts` con tu configuración de Firebase:
 
 ```ts
 const firebaseConfig = {
