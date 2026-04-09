@@ -4,6 +4,7 @@ import { getAreaStats } from "@/controllers/TaskController";
 import { useAllTasks } from "@/hooks/useTasks";
 import { AREAS } from "@/models/Area";
 import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { router } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -30,8 +31,9 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const { allTasks, todayTasks, totalPending } = useAllTasks();
-  const s = makeStyles(theme, insets.bottom);
+  const s = makeStyles(theme, insets.bottom, tabBarHeight);
 
   const firstName = user?.name?.split(" ")[0] ?? "Usuario";
 
@@ -48,7 +50,7 @@ export default function HomeScreen() {
     );
 
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView style={s.safe} edges={["top", "left", "right"]}>
       <ScrollView
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
@@ -131,14 +133,18 @@ export default function HomeScreen() {
   );
 }
 
-const makeStyles = (t: ReturnType<typeof useTheme>["theme"], bottomInset: number) =>
+const makeStyles = (
+  t: ReturnType<typeof useTheme>["theme"],
+  bottomInset: number,
+  tabBarHeight: number,
+) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: t.bg },
     content: {
       paddingHorizontal: 20,
       paddingTop: 8,
       // Evita que el CTA inferior quede detrás del tab bar o botones del sistema.
-      paddingBottom: Math.max(40, bottomInset + 92),
+      paddingBottom: Math.max(96, bottomInset + tabBarHeight + 44),
     },
 
     header: {

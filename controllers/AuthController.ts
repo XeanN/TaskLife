@@ -1,15 +1,17 @@
 import { GoogleUserInfo, User } from "@/models/User";
 import {
-    registerWithEmail,
-    signInWithEmail,
-    signOutUser,
-    subscribeToAuthState,
+  registerWithEmail,
+  signInWithEmail,
+  signOutUser,
+  subscribeToAuthState,
 } from "@/services/authService";
 import { User as FirebaseUser } from "firebase/auth";
 
 export { subscribeToAuthState };
 
-export function mapFirebaseUser(fbUser: FirebaseUser): User {
+type AuthUser = Exclude<User, null>;
+
+export function mapFirebaseUser(fbUser: FirebaseUser): AuthUser {
   return {
     id: fbUser.uid,
     email: fbUser.email ?? "",
@@ -19,7 +21,7 @@ export function mapFirebaseUser(fbUser: FirebaseUser): User {
   };
 }
 
-export function mapGoogleUser(googleUser: GoogleUserInfo): User {
+export function mapGoogleUser(googleUser: GoogleUserInfo): AuthUser {
   return {
     id: googleUser.id,
     email: googleUser.email,
@@ -32,7 +34,7 @@ export function mapGoogleUser(googleUser: GoogleUserInfo): User {
 export async function loginWithEmail(
   email: string,
   password: string,
-): Promise<User> {
+): Promise<AuthUser> {
   if (!email.trim() || !password.trim()) {
     throw new Error("Por favor completa todos los campos");
   }
@@ -62,7 +64,7 @@ export async function registerWithEmailAndName(
   email: string,
   password: string,
   confirmPassword: string,
-): Promise<User> {
+): Promise<AuthUser> {
   if (!name.trim() || !email.trim() || !password || !confirmPassword) {
     throw new Error("Por favor completa todos los campos");
   }
