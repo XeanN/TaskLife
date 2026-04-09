@@ -6,7 +6,7 @@
 ![Expo](https://img.shields.io/badge/Expo-54-000020?style=flat&logo=expo)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat&logo=typescript)
 ![Firebase](https://img.shields.io/badge/Firebase-12.x-FFCA28?style=flat&logo=firebase)
-![Arquitectura](https://img.shields.io/badge/Arquitectura-MVC-purple?style=flat)
+![Arquitectura](https://img.shields.io/badge/Arquitectura-MVC_Hibrida-5E60CE?style=flat)
 
 ---
 
@@ -29,13 +29,14 @@
 - ✅ **Perfil de usuario** con estadísticas y configuración
 - ✅ Datos sincronizados en **Firebase Firestore** en tiempo real
 - ✅ Navegación por **tabs** con Expo Router
-- ✅ Arquitectura **MVC** — código limpio y escalable
+- ✅ Arquitectura **MVC híbrida** (Model + Controller + View + hooks/context)
 
 ---
 
-## 🗂️ Arquitectura MVC
+## 🗂️ Arquitectura MVC (Híbrida)
 
-TASKLIFE/
+```text
+TaskLife/
 │
 ├── 📁 models/ ← MODEL (tipos puros)
 │ ├── Task.ts
@@ -93,6 +94,18 @@ TASKLIFE/
 ├── 📁 constants/
 │ └── theme.ts
 └── 📁 assets/
+```
+
+### Estado real de la arquitectura
+
+Esta rama implementa **MVC híbrida**:
+
+- **Model**: `models/` define entidades y contratos (`Task`, `User`, `Label`, `Area`).
+- **Controller**: `controllers/` centraliza reglas de negocio, validaciones y transformación de datos.
+- **View**: `app/` renderiza pantallas y delega lógica a hooks/controllers.
+- **Application layer**: `hooks/` conecta View con Controller para orquestar estado y casos de uso.
+
+No es MVC estricto al 100% porque hay accesos directos a `services/` en puntos concretos (por ejemplo, `app/settings/notifications.tsx` y `context/ThemeContext.tsx`).
 
 ---
 
@@ -118,6 +131,7 @@ TASKLIFE/
 
 ### Estructura de datos
 
+```text
 users/
 └── {userId}/
 ├── areas/
@@ -126,6 +140,7 @@ users/
 │ └── {taskId}/
 └── labels/
 └── {labelId}/ ← etiquetas personalizadas
+```
 
 ### Campos de cada tarea
 

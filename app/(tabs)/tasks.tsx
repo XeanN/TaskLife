@@ -8,14 +8,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import {
-  Alert,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
+    Alert,
+    FlatList,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 type AreaFilter = "all" | "work" | "education" | "finance" | "health";
 
@@ -160,9 +160,10 @@ const styles_row = StyleSheet.create({
 
 export default function TasksScreen() {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const { allTasks, toggle, remove, saveQuick } = useAllTasks();
   const { labels } = useLabels();
-  const s = makeStyles(theme);
+  const s = makeStyles(theme, insets.bottom);
 
   const [areaFilter, setAreaFilter] = useState<AreaFilter>("all");
   const [showDone, setShowDone] = useState(false);
@@ -316,7 +317,7 @@ export default function TasksScreen() {
   );
 }
 
-const makeStyles = (t: ReturnType<typeof useTheme>["theme"]) =>
+const makeStyles = (t: ReturnType<typeof useTheme>["theme"], bottomInset: number) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: t.bg },
     header: {
@@ -365,13 +366,19 @@ const makeStyles = (t: ReturnType<typeof useTheme>["theme"]) =>
       borderColor: t.primary,
     },
     chipText: { fontSize: 13, color: t.textSecond, fontWeight: "500" },
-    list: { paddingHorizontal: 20, paddingBottom: 100, paddingTop: 4 },
+    list: {
+      paddingHorizontal: 20,
+      // Espacio extra para que la última tarea no quede bajo tab bar/FAB.
+      paddingBottom: Math.max(100, bottomInset + 124),
+      paddingTop: 4,
+    },
     empty: { alignItems: "center", paddingTop: 60, gap: 8 },
     emptyText: { fontSize: 16, color: t.textThird, fontWeight: "600" },
     emptyHint: { fontSize: 13, color: t.border },
     fab: {
       position: "absolute",
-      bottom: 24,
+      // Mantiene el FAB por encima de la barra inferior del sistema.
+      bottom: Math.max(24, bottomInset + 76),
       right: 24,
       width: 56,
       height: 56,

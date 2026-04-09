@@ -6,7 +6,7 @@ import { AREAS } from "@/models/Area";
 import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 function AreaIcon({
   lib,
@@ -29,8 +29,9 @@ function AreaIcon({
 export default function HomeScreen() {
   const { user } = useAuth();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const { allTasks, todayTasks, totalPending } = useAllTasks();
-  const s = makeStyles(theme);
+  const s = makeStyles(theme, insets.bottom);
 
   const firstName = user?.name?.split(" ")[0] ?? "Usuario";
 
@@ -130,10 +131,15 @@ export default function HomeScreen() {
   );
 }
 
-const makeStyles = (t: ReturnType<typeof useTheme>["theme"]) =>
+const makeStyles = (t: ReturnType<typeof useTheme>["theme"], bottomInset: number) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: t.bg },
-    content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 },
+    content: {
+      paddingHorizontal: 20,
+      paddingTop: 8,
+      // Evita que el CTA inferior quede detrás del tab bar o botones del sistema.
+      paddingBottom: Math.max(40, bottomInset + 92),
+    },
 
     header: {
       flexDirection: "row",
