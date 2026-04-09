@@ -7,17 +7,18 @@ import {
   ActivityIndicator,
   Image,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function WelcomeScreen() {
   const { theme } = useTheme();
   const { signInWithGoogle, isReady } = useGoogleAuth();
   const { isLoading } = useAuth();
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
 
   const C = {
     bg: theme.bg,
@@ -35,8 +36,8 @@ export default function WelcomeScreen() {
       backgroundColor: C.bg,
       alignItems: "center",
       paddingHorizontal: 28,
-      paddingTop: 16,
-      paddingBottom: 24,
+      paddingTop: Math.max(insets.top, 60),
+      paddingBottom: Math.max(insets.bottom, 24),
     },
     appIconWrapper: { alignItems: "center", marginBottom: 16 },
     appIcon: { width: 64, height: 64, borderRadius: 16 },
@@ -117,7 +118,7 @@ export default function WelcomeScreen() {
   });
 
   return (
-    <SafeAreaView style={dynamicStyles.container}>
+    <View style={dynamicStyles.container}>
       {/* Ícono de app */}
       <View style={dynamicStyles.appIconWrapper}>
         <Image
@@ -192,6 +193,6 @@ export default function WelcomeScreen() {
         <Text style={dynamicStyles.termsLink}>Términos de Servicio</Text> y nuestra{" "}
         <Text style={dynamicStyles.termsLink}>Política de Privacidad</Text>
       </Text>
-    </SafeAreaView>
+    </View>
   );
 }

@@ -4,7 +4,7 @@ import { subscribeToTasks } from "@/services/taskService";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const AREAS = [
@@ -20,12 +20,6 @@ const MENU_ITEMS = [
     icon: "notifications-outline",
     label: "Notificaciones",
     route: "Notifications",
-  },
-  {
-    id: "theme",
-    icon: "color-palette-outline",
-    label: "Tema de la app",
-    route: "Theme",
   },
   {
     id: "privacy",
@@ -50,7 +44,7 @@ const MENU_ITEMS = [
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const navigation = useNavigation<any>();
-  const { theme } = useTheme();
+  const { theme, dark, toggle } = useTheme();
 
   const [totalDone, setTotalDone] = useState(0);
   const [totalPending, setTotalPending] = useState(0);
@@ -84,13 +78,39 @@ export default function ProfileScreen() {
         .slice(0, 2)
     : "TL";
 
+  const handleLogout = () => {
+    Alert.alert("Cerrar Sesión", "¿Estás seguro? Lo extrañaremos.", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Continuar",
+        style: "destructive",
+        onPress: logout,
+      },
+    ]);
+  };
+
   const STATS = [
-    { label: "Completadas", value: String(totalDone) },
-    { label: "Pendientes", value: String(totalPending) },
-    { label: "Áreas\nactivas", value: String(activeAreas) },
+    {
+      label: "Completadas",
+      value: totalDone,
+      icon: "checkmark-circle-outline",
+      color: (theme as any).success || "#4CAF50",
+    },
+    {
+      label: "Pendientes",
+      value: totalPending,
+      icon: "time-outline",
+      color: theme.primary,
+    },
+    {
+      label: "Áreas activas",
+      value: activeAreas,
+      icon: "grid-outline",
+      color: theme.gold || "#FFD700",
+    },
   ];
 
-  const s = makeStyles(theme);
+  const s = makeStyles(theme, dark);
 
   return (
     <SafeAreaView style={s.safe} edges={["top", "left", "right"]}>
@@ -100,7 +120,7 @@ export default function ProfileScreen() {
       >
         <Text style={s.screenTitle}>Mi perfil</Text>
 
-        {/* ── Avatar ── */}
+        {/* Avatar */}
         <View style={s.avatarSection}>
           <View style={s.avatarCircle}>
             <Text style={s.avatarText}>{initials}</Text>
@@ -112,7 +132,7 @@ export default function ProfileScreen() {
               name={
                 user?.provider === "google" ? "logo-google" : "mail-outline"
               }
-              size={13}
+              size={12}
               color={theme.primary}
             />
             <Text style={s.providerText}>
@@ -121,20 +141,53 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Stats ── */}
+        {/* Stats */}
         <View style={s.statsRow}>
           {STATS.map((stat, i) => (
             <View
               key={i}
               style={[s.statItem, i < STATS.length - 1 && s.statDivider]}
             >
-              <Text style={s.statValue}>{stat.value}</Text>
+              <Ionicons name={stat.icon as any} size={20} color={stat.color} />
+              <Text style={[s.statValue, { color: stat.color }]}>
+                {stat.value}
+              </Text>
               <Text style={s.statLabel}>{stat.label}</Text>
             </View>
           ))}
         </View>
 
-        {/* ── Menú ── */}
+        {/* Modo oscuro */}
+        <View style={s.darkCard}>
+          <View style={s.darkLeft}>
+            <View
+              style={[
+                s.darkIcon,
+                { backgroundColor: dark ? "#2A2010" : theme.primary + "20" },
+              ]}
+            >
+              <Ionicons
+                name={dark ? "moon" : "sunny-outline"}
+                size={20}
+                color={dark ? (theme.gold || "#FFD700") : theme.primary}
+              />
+            </View>
+            <View>
+              <Text style={s.darkLabel}>Modo {dark ? "oscuro" : "claro"}</Text>
+              <Text style={s.darkHint}>
+                {dark ? "Toda la app en oscuro" : "Toda la app en claro"}
+              </Text>
+            </View>
+          </View>
+          <Switch
+            value={dark}
+            onValueChange={toggle}
+            trackColor={{ false: theme.border, true: theme.primary }}
+            thumbColor="#fff"
+          />
+        </View>
+
+        {/* Menú */}
         <View style={s.menuCard}>
           {MENU_ITEMS.map((item, i) => (
             <Pressable
@@ -146,7 +199,7 @@ export default function ProfileScreen() {
               ]}
               onPress={() => navigation.navigate("Settings", { screen: item.route })}
             >
-              <View style={s.menuIconWrapper}>
+              <View style={s.menuIcon}>
                 <Ionicons
                   name={item.icon as any}
                   size={20}
@@ -159,12 +212,12 @@ export default function ProfileScreen() {
           ))}
         </View>
 
-        {/* ── Cerrar sesión ── */}
+        {/* Logout */}
         <Pressable
           style={({ pressed }) => [s.logoutBtn, pressed && { opacity: 0.85 }]}
-          onPress={logout}
+          onPress={handleLogout}
         >
-          <Ionicons name="log-out-outline" size={20} color="#E53E3E" />
+          <Ionicons name="log-out-outline" size={20} color={(theme as any).danger || "#E53E3E"} />
           <Text style={s.logoutText}>Cerrar sesión</Text>
         </Pressable>
 
@@ -174,9 +227,7 @@ export default function ProfileScreen() {
   );
 }
 
-const makeStyles = (
-  t: ReturnType<typeof import("../context/ThemeContext").useTheme>["theme"],
-) =>
+const makeStyles = (t: any, dark: boolean) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: t.bg },
     content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 },
@@ -184,27 +235,27 @@ const makeStyles = (
       fontSize: 22,
       fontWeight: "800",
       color: t.text,
-      marginBottom: 20,
+      marginBottom: 24,
     },
+
     avatarSection: { alignItems: "center", marginBottom: 24 },
     avatarCircle: {
-      width: 88,
-      height: 88,
-      borderRadius: 44,
+      width: 90,
+      height: 90,
+      borderRadius: 45,
       backgroundColor: t.primary,
       alignItems: "center",
       justifyContent: "center",
       marginBottom: 12,
-      elevation: 6,
     },
-    avatarText: { fontSize: 28, fontWeight: "800", color: "#fff" },
+    avatarText: { fontSize: 30, fontWeight: "800", color: "#fff" },
     userName: {
       fontSize: 20,
       fontWeight: "800",
       color: t.text,
       marginBottom: 4,
     },
-    userEmail: { fontSize: 13, color: t.textSecond, marginBottom: 8 },
+    userEmail: { fontSize: 13, color: t.textSecond, marginBottom: 10 },
     providerBadge: {
       flexDirection: "row",
       alignItems: "center",
@@ -215,33 +266,56 @@ const makeStyles = (
       borderRadius: 20,
     },
     providerText: { fontSize: 12, color: t.primary, fontWeight: "600" },
+
     statsRow: {
       flexDirection: "row",
       backgroundColor: t.card,
       borderRadius: 16,
       padding: 16,
-      marginBottom: 20,
-      elevation: 2,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: t.border,
     },
-    statItem: { flex: 1, alignItems: "center" },
-    statDivider: { borderRightWidth: 1, borderRightColor: t.border },
-    statValue: {
-      fontSize: 22,
-      fontWeight: "800",
-      color: t.primary,
-      marginBottom: 4,
+    statItem: { flex: 1, alignItems: "center", gap: 4 },
+    statDivider: {
+      borderRightWidth: 1,
+      borderRightColor: t.border,
     },
+    statValue: { fontSize: 22, fontWeight: "800" },
     statLabel: {
       fontSize: 11,
       color: t.textSecond,
       textAlign: "center",
-      lineHeight: 16,
     },
+
+    darkCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      backgroundColor: t.card,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    darkLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+    darkIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    darkLabel: { fontSize: 15, fontWeight: "600", color: t.text },
+    darkHint: { fontSize: 12, color: t.textSecond, marginTop: 2 },
+
     menuCard: {
       backgroundColor: t.card,
       borderRadius: 16,
       marginBottom: 16,
-      elevation: 2,
+      borderWidth: 1,
+      borderColor: t.border,
     },
     menuRow: {
       flexDirection: "row",
@@ -251,7 +325,7 @@ const makeStyles = (
       gap: 12,
     },
     menuBorder: { borderTopWidth: 1, borderTopColor: t.border },
-    menuIconWrapper: {
+    menuIcon: {
       width: 36,
       height: 36,
       borderRadius: 10,
@@ -261,6 +335,7 @@ const makeStyles = (
     },
     menuLabel: { flex: 1, fontSize: 15, color: t.text, fontWeight: "500" },
     pressed: { opacity: 0.7 },
+
     logoutBtn: {
       flexDirection: "row",
       alignItems: "center",
@@ -271,8 +346,8 @@ const makeStyles = (
       paddingVertical: 14,
       marginBottom: 20,
       borderWidth: 1.5,
-      borderColor: "#E53E3E",
+      borderColor: t.danger || "#E53E3E",
     },
-    logoutText: { color: "#E53E3E", fontSize: 16, fontWeight: "700" },
+    logoutText: { color: t.danger || "#E53E3E", fontSize: 16, fontWeight: "700" },
     version: { textAlign: "center", fontSize: 12, color: t.textSecond },
   });

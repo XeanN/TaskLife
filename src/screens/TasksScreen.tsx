@@ -1,4 +1,8 @@
 import { useAuth } from "../context/AuthContext";
+import { FloatingActionButton } from "../components/FloatingActionButton";
+import { EmptyState } from "../components/EmptyState";
+import { FilterChips } from "../components/FilterChips";
+import { TaskFormModal } from "../components/TaskFormModal";
 import { useTheme, Theme } from "../context/ThemeContext";
 import {
   createTask,
@@ -14,13 +18,9 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -42,7 +42,7 @@ const PRIORITIES: { value: Priority; label: string; color: string }[] = [
 type AreaFilter = "all" | "work" | "education" | "finance" | "health";
 
 // ─── TaskCard ─────────────────────────────────────────────
-function TaskCard({
+const TaskCard = ({
   task,
   onToggle,
   onDelete,
@@ -52,7 +52,7 @@ function TaskCard({
   onToggle: () => void;
   onDelete: () => void;
   onPressArea: () => void;
-}) {
+}) => {
   const { theme } = useTheme();
   const tc = useMemo(() => createTaskCardStyles(theme), [theme]);
 
@@ -164,163 +164,6 @@ const createTaskCardStyles = (theme: Theme) => StyleSheet.create({
 });
 
 // ─── Modal nueva tarea rápida ─────────────────────────────
-function QuickTaskModal({
-  visible,
-  onClose,
-  onSave,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onSave: (areaId: string, title: string, priority: Priority) => void;
-}) {
-  const { theme } = useTheme();
-  const qm = useMemo(() => createModalStyles(theme), [theme]);
-  const [title, setTitle] = useState("");
-  const [areaId, setAreaId] = useState<string>("work");
-  const [priority, setPriority] = useState<Priority>("media");
-
-  const handleSave = () => {
-    if (!title.trim()) {
-      Alert.alert("Escribe un nombre");
-      return;
-    }
-    onSave(areaId, title.trim(), priority);
-    setTitle("");
-    setPriority("media");
-    setAreaId("work");
-  };
-
-  return (
-    <Modal visible={visible} transparent animationType="slide">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={qm.overlay}
-      >
-        <View style={qm.card}>
-          <Text style={qm.heading}>Nueva tarea</Text>
-
-          <TextInput
-            style={qm.input}
-            placeholder="Nombre de la tarea"
-            placeholderTextColor={theme.textSecond}
-            value={title}
-            onChangeText={setTitle}
-            autoFocus
-          />
-
-          {/* Área */}
-          <Text style={qm.label}>Área</Text>
-          <View style={qm.row}>
-            {AREAS.map((a) => (
-              <Pressable
-                key={a.id}
-                style={[
-                  qm.chip,
-                  areaId === a.id && { backgroundColor: a.color },
-                ]}
-                onPress={() => setAreaId(a.id)}
-              >
-                <Text
-                  style={[qm.chipText, areaId === a.id && { color: "#fff" }]}
-                >
-                  {a.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          {/* Prioridad */}
-          <Text style={qm.label}>Prioridad</Text>
-          <View style={qm.row}>
-            {PRIORITIES.map((p) => (
-              <Pressable
-                key={p.value}
-                style={[
-                  qm.chip,
-                  priority === p.value && { backgroundColor: p.color },
-                ]}
-                onPress={() => setPriority(p.value)}
-              >
-                <Text
-                  style={[
-                    qm.chipText,
-                    priority === p.value && { color: "#fff" },
-                  ]}
-                >
-                  {p.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <View style={qm.buttons}>
-            <Pressable style={qm.cancelBtn} onPress={onClose}>
-              <Text style={qm.cancelText}>Cancelar</Text>
-            </Pressable>
-            <Pressable style={qm.saveBtn} onPress={handleSave}>
-              <Text style={qm.saveText}>Agregar</Text>
-            </Pressable>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-}
-
-const createModalStyles = (theme: Theme) => StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.4)",
-  },
-  card: {
-    backgroundColor: theme.card,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 36,
-  },
-  heading: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: theme.text,
-    marginBottom: 16,
-  },
-  input: {
-    backgroundColor: theme.inputBg,
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 15,
-    color: theme.text,
-    marginBottom: 16,
-  },
-  label: { fontSize: 13, fontWeight: "600", color: theme.textSecond, marginBottom: 8 },
-  row: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: theme.border,
-  },
-  chipText: { fontSize: 13, color: theme.textSecond, fontWeight: "500" },
-  buttons: { flexDirection: "row", gap: 12, marginTop: 4 },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    backgroundColor: theme.inputBg,
-  },
-  cancelText: { fontSize: 15, color: theme.textSecond, fontWeight: "600" },
-  saveBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    backgroundColor: theme.primary,
-  },
-  saveText: { fontSize: 15, color: "#fff", fontWeight: "700" },
-});
 
 // ─── Pantalla principal ───────────────────────────────────
 export default function TasksScreen() {
@@ -365,12 +208,16 @@ export default function TasksScreen() {
   const totalPending = flatTasks.filter((t) => !t.done).length;
   const totalDone = flatTasks.filter((t) => t.done).length;
 
-  const handleQuickSave = async (
-    areaId: string,
-    title: string,
-    priority: Priority,
-  ) => {
-    if (!user) return;
+  const handleQuickSave = async ({
+    areaId,
+    title,
+    priority,
+  }: {
+    areaId?: string;
+    title: string;
+    priority: Priority;
+  }) => {
+    if (!user || !areaId) return;
     try {
       await createTask(user.id, areaId, {
         title,
@@ -438,37 +285,12 @@ export default function TasksScreen() {
       </View>
 
       {/* ── Filtro por área ── */}
-      <View style={s.filterScroll}>
-        <Pressable
-          style={[s.filterChip, areaFilter === "all" && s.filterChipActive]}
-          onPress={() => setAreaFilter("all")}
-        >
-          <Text
-            style={[s.filterText, areaFilter === "all" && s.filterTextActive]}
-          >
-            Todas
-          </Text>
-        </Pressable>
-        {AREAS.map((a) => (
-          <Pressable
-            key={a.id}
-            style={[
-              s.filterChip,
-              areaFilter === a.id && {
-                backgroundColor: a.color,
-                borderColor: a.color,
-              },
-            ]}
-            onPress={() => setAreaFilter(a.id as AreaFilter)}
-          >
-            <Text
-              style={[s.filterText, areaFilter === a.id && { color: "#fff" }]}
-            >
-              {a.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <FilterChips
+        options={[{ id: "all", label: "Todas" }, ...AREAS]}
+        activeId={areaFilter}
+        onChange={(id) => setAreaFilter(id as AreaFilter)}
+        style={s.filterScroll}
+      />
 
       {/* ── Lista ── */}
       <FlatList
@@ -483,30 +305,23 @@ export default function TasksScreen() {
             onPressArea={() => goToArea(item.areaId)}
           />
         )}
-        ListEmptyComponent={
-          <View style={s.empty}>
-            <Ionicons
-              name="checkmark-done-circle-outline"
-              size={56}
-              color={theme.border}
-            />
-            <Text style={s.emptyText}>No hay tareas aquí</Text>
-            <Text style={s.emptyHint}>Toca + para agregar una</Text>
-          </View>
-        }
+        ListEmptyComponent={<EmptyState />}
         showsVerticalScrollIndicator={false}
       />
 
       {/* ── FAB ── */}
-      <Pressable style={s.fab} onPress={() => setModal(true)}>
-        <Ionicons name="add" size={28} color="#fff" />
-      </Pressable>
+      <FloatingActionButton
+        color={theme.primary}
+        onPress={() => setModal(true)}
+      />
 
       {/* ── Modal ── */}
-      <QuickTaskModal
+      <TaskFormModal
         visible={modalOpen}
         onClose={() => setModal(false)}
-        onSave={handleQuickSave}
+        onSave={handleQuickSave as any}
+        showAreaSelector
+        areas={AREAS as any}
       />
     </SafeAreaView>
   );

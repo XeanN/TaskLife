@@ -1,9 +1,9 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import HomeScreen from '../screens/HomeScreen';
 import TasksScreen from '../screens/TasksScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import SettingsStack from './SettingsStack';
 import { useTheme } from '../context/ThemeContext';
 
 const Tab = createBottomTabNavigator();
@@ -17,12 +17,12 @@ export default function MainTabs() {
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
 
-          if (route.name === 'Tasks') {
+          if (route.name === 'Inicio') {
+            iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Tasks') {
             iconName = focused ? 'list' : 'list-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
-          } else if (route.name === 'Settings') {
-            iconName = focused ? 'settings' : 'settings-outline';
           }
 
           return <Ionicons name={iconName as any} size={size} color={color} />;
@@ -36,9 +36,9 @@ export default function MainTabs() {
         headerShown: false,
       })}
     >
+      <Tab.Screen name="Inicio" component={HomeScreen} />
       <Tab.Screen name="Tasks" component={TasksScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
-      <Tab.Screen name="Settings" component={SettingsStack} />
     </Tab.Navigator>
   );
 }
