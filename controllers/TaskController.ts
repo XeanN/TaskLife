@@ -29,7 +29,7 @@ function normalizePriority(value: unknown): "alta" | "media" | "baja" {
 export async function addTask(
   userId: string,
   formData: TaskFormData,
-): Promise<void> {
+): Promise<any> {
   if (!userId) {
     throw new Error("Usuario no autenticado");
   }
@@ -49,7 +49,7 @@ export async function addTask(
     areaId: formData.areaId,
   };
   console.log("Adding task:", newTask);
-  await createTask(userId, formData.areaId, newTask);
+  return await createTask(userId, formData.areaId, newTask);
 }
 
 export async function editTask(

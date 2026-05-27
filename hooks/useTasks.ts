@@ -2,6 +2,8 @@ import { useAuth } from "@/context/AuthContext";
 import { addTask, editTask, FilterType, removeTask, SortKey, toggleTaskDone } from "@/controllers/TaskController";
 import { AREAS } from "@/models/Area";
 import { Task, TaskFormData } from "@/models/Task";
+import { syncReminderNotifications } from "@/services/notificationsService";
+import { crearReminder } from "@/services/remindersService";
 import { obtenerTareas } from "@/services/taskService";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -68,6 +70,51 @@ function getTasksSnapshot() {
 
 function getAreaSnapshot(areaId: string) {
   return tasksStore.areaTasks[areaId] ?? [];
+}
+
+function buildOneDayReminderDate(dueDate?: Date) {
+  if (!dueDate) return null;
+  const parsedDueDate = new Date(dueDate);
+  if (Number.isNaN(parsedDueDate.getTime())) return null;
+
+  const reminderDate = new Date(parsedDueDate);
+  reminderDate.setDate(reminderDate.getDate() - 1);
+  reminderDate.setHours(9, 0, 0, 0);
+
+  if (reminderDate.getTime() <= Date.now()) return null;
+  return reminderDate;
+}
+
+async function createAutoDueReminder(
+  userId: string,
+  formData: TaskFormData,
+  createdTask?: any,
+) {
+  const reminderDate = buildOneDayReminderDate(formData.dueDate);
+  if (!reminderDate) return;
+
+  const title = formData.title?.trim() || "Tarea";
+  const taskId = String(createdTask?.id || createdTask?.taskId || `${formData.areaId}-${Date.now()}`);
+
+  const payload = {
+    id: `task-${taskId}-due-1d`,
+    taskId,
+    type: "TASK_DUE_ONE_DAY",
+    title: `Te queda 1 día: ${title}`,
+    body: `La tarea \"${title}\" vence mañana.`,
+    dueAt: reminderDate.toISOString(),
+    status: "pending",
+  };
+
+  try {
+    const createdReminder = await crearReminder(userId, payload);
+    await syncReminderNotifications([createdReminder || payload]);
+  } catch (err: any) {
+    console.warn(
+      "⚠️ No se pudo crear/sincronizar recordatorio automático de tarea:",
+      err?.message || err,
+    );
+  }
 }
 
 async function fetchAreaTasks(userId: string, areaId: string) {
@@ -244,7 +291,8 @@ export function useAreaTasks(
     if (editingTask) {
       await editTask(user.id, areaId, editingTask.id, formData);
     } else {
-      await addTask(user.id, { ...formData, areaId });
+      const createdTask = await addTask(user.id, { ...formData, areaId });
+      await createAutoDueReminder(user.id, { ...formData, areaId }, createdTask);
     }
     await fetchAreaTasks(user.id, areaId);
   };
@@ -378,7 +426,8 @@ export function useAllTasks() {
 
   const saveQuick = async (formData: TaskFormData): Promise<void> => {
     if (!user) return;
-    await addTask(user.id, formData);
+    const createdTask = await addTask(user.id, formData);
+    await createAutoDueReminder(user.id, formData, createdTask);
     await fetchAreaTasks(user.id, formData.areaId);
   };
 
