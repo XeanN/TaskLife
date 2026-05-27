@@ -1,0 +1,9 @@
+.gradle/
+build/
+.idea/
+*.iml
+*.log
+*.bin
+test_toggle.ps1
+google-services.json
+src/main/resources/tasklife-4918b-firebase-adminsdk.json

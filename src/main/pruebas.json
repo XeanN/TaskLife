@@ -1,0 +1,33 @@
+//GET -> LISTAR PRODUCTOS
+http://localhost:8080/productos
+
+//POST -> CREAR PRODUCTO
+http://localhost:8080/productos
+
+{
+"id": 1,
+"nombre": "Laptop",
+"precio": 2500000,
+"descripcion": "Laptop gamer",
+"imagen": ""
+}
+
+//GET BY ID
+http://localhost:8080/productos/1
+
+//PUT → ACTUALIZAR
+http://localhost:8080/productos/1
+
+{
+"id": 1,
+"nombre": "Laptop PRO",
+"precio": 3000000,
+"descripcion": "Actualizada",
+"imagen": ""
+}
+
+//DELETE → ELIMINAR
+
+DELETE http://localhost:8080/productos/1
+
+./gradlew run

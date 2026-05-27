@@ -1,0 +1,266 @@
+{
+  "info": {
+    "name": "TaskLife Backend API",
+    "description": "Colección completa de endpoints del backend TaskLife",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "🏥 Health",
+      "item": [
+        {
+          "name": "Health Check Firebase",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/health/firebase",
+              "host": ["{{base_url}}"],
+              "path": ["health", "firebase"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🎯 Áreas",
+      "item": [
+        {
+          "name": "Listar todas las áreas",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/areas",
+              "host": ["{{base_url}}"],
+              "path": ["areas"]
+            }
+          }
+        },
+        {
+          "name": "Obtener área específica",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/areas/{{areaId}}",
+              "host": ["{{base_url}}"],
+              "path": ["areas", "{{areaId}}"]
+            }
+          }
+        },
+        {
+          "name": "Obtener prioridades",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/areas/priorities",
+              "host": ["{{base_url}}"],
+              "path": ["areas", "priorities"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👤 Usuarios",
+      "item": [
+        {
+          "name": "Obtener perfil del usuario",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/users/{{userId}}",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar perfil del usuario",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Nuevo Nombre\", \"picture\": \"https://\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/{{userId}}",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{userId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📝 Tareas",
+      "item": [
+        {
+          "name": "Listar tareas del área",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/users/{{userId}}/areas/{{areaId}}/tasks",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{userId}}", "areas", "{{areaId}}", "tasks"]
+            }
+          }
+        },
+        {
+          "name": "Crear nueva tarea",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\": \"Mi Nueva Tarea\", \"description\": \"Descripción de la tarea\", \"done\": false, \"dueDate\": \"2026-05-20T10:00:00Z\", \"priority\": \"media\", \"labelIds\": [], \"areaId\": \"{{areaId}}\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/{{userId}}/areas/{{areaId}}/tasks",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{userId}}", "areas", "{{areaId}}", "tasks"]
+            }
+          }
+        },
+        {
+          "name": "Obtener tarea específica",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/users/{{userId}}/areas/{{areaId}}/tasks/{{taskId}}",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{userId}}", "areas", "{{areaId}}", "tasks", "{{taskId}}"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar tarea",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\": \"Tarea Actualizada\", \"done\": true, \"priority\": \"alta\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/{{userId}}/areas/{{areaId}}/tasks/{{taskId}}",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{userId}}", "areas", "{{areaId}}", "tasks", "{{taskId}}"]
+            }
+          }
+        },
+        {
+          "name": "Eliminar tarea",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/users/{{userId}}/areas/{{areaId}}/tasks/{{taskId}}",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{userId}}", "areas", "{{areaId}}", "tasks", "{{taskId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏷️ Etiquetas",
+      "item": [
+        {
+          "name": "Listar etiquetas del usuario",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/users/{{userId}}/labels",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{userId}}", "labels"]
+            }
+          }
+        },
+        {
+          "name": "Crear etiqueta",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Urgente\", \"color\": \"#EF4444\", \"userId\": \"{{userId}}\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/{{userId}}/labels",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{userId}}", "labels"]
+            }
+          }
+        },
+        {
+          "name": "Obtener etiqueta específica",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/users/{{userId}}/labels/{{labelId}}",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{userId}}", "labels", "{{labelId}}"]
+            }
+          }
+        },
+        {
+          "name": "Eliminar etiqueta",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/users/{{userId}}/labels/{{labelId}}",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{userId}}", "labels", "{{labelId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8080",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "hCll5lfuGPN1J8voVXYkRe7AtUP2",
+      "type": "string"
+    },
+    {
+      "key": "areaId",
+      "value": "education",
+      "type": "string"
+    },
+    {
+      "key": "taskId",
+      "value": "WvDhexUr3DlFbFa8gKmI",
+      "type": "string"
+    },
+    {
+      "key": "labelId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
