@@ -58,7 +58,7 @@ const MENU_ITEMS = [
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const { theme, dark, toggle } = useTheme();
-  const { allTasks, loading, error } = useAllTasks();
+  const { allTasks, loading, error, fetchTasks } = useAllTasks();
   const s = makeStyles(theme);
 
   // NOTE: Disabled auto-refetch on focus to prevent Firestore quota exhaustion

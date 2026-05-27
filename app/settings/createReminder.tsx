@@ -1,7 +1,7 @@
-import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
-import { crearReminder } from "@/services/remindersService";
+import { useTheme } from "@/context/ThemeContext";
 import { syncReminderNotifications } from "@/services/notificationsService";
+import { crearReminder } from "@/services/remindersService";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
