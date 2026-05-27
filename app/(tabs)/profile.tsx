@@ -137,7 +137,7 @@ export default function ProfileScreen() {
             <Text style={[s.statusText, { color: theme.danger }]}>
               No se pudieron cargar las estadísticas.
             </Text>
-            <Pressable style={s.retryBtn} onPress={fetchTasks}>
+            <Pressable style={s.retryBtn} onPress={() => fetchTasks(true)}>
               <Text style={s.retryText}>Reintentar</Text>
             </Pressable>
           </View>

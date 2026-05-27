@@ -163,7 +163,7 @@ const styles_row = StyleSheet.create({
 export default function TasksScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const { allTasks, toggle, remove, saveQuick, loading, error } =
+  const { allTasks, toggle, remove, saveQuick, loading, error, fetchTasks } =
     useAllTasks();
   const { labels } = useLabels();
   const s = makeStyles(theme, insets.bottom);
@@ -305,7 +305,7 @@ export default function TasksScreen() {
               <Ionicons name="cloud-offline-outline" size={56} color={theme.border} />
               <Text style={s.emptyText}>No se pudieron cargar</Text>
               <Text style={s.emptyHint}>Revisa tu conexión y vuelve a intentar</Text>
-              <Pressable style={s.retryBtn} onPress={fetchTasks}>
+              <Pressable style={s.retryBtn} onPress={() => fetchTasks(true)}>
                 <Text style={s.retryText}>Reintentar</Text>
               </Pressable>
             </View>
