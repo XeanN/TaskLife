@@ -19,7 +19,7 @@ fun Application.configureAuthRoutes() {
                 try {
                     val request = call.receive<FirebaseAuthRequest>()
                     val response = controller.authenticateWithFirebase(request)
-                    call.respond(response)
+                    call.respond(HttpStatusCode.OK, response)
                 } catch (e: InvalidFirebaseTokenException) {
                     call.respondText(
                         e.message ?: "Token de Firebase invalido",

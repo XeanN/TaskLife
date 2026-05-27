@@ -2,6 +2,7 @@ package com.tasklife.support
 
 import com.tasklife.models.AreaConstants
 import com.tasklife.models.NewTask
+import com.tasklife.models.ReminderCreateRequest
 import com.tasklife.models.TaskUpdate
 import java.time.Instant
 
@@ -22,6 +23,15 @@ object Validation {
         if (task.priority != null && task.priority !in allowedPriorities) return "La prioridad no es valida"
         if (task.dueDate != null && !isValidInstant(task.dueDate)) return "La fecha dueDate no es valida"
         if (task.reminders != null && task.reminders.any { it.offsetMs < 0 }) return "Los recordatorios no pueden tener offset negativo"
+        return null
+    }
+
+    fun validateReminderCreate(request: ReminderCreateRequest): String? {
+        if (request.title.isBlank()) return "El titulo del recordatorio es obligatorio"
+        if (request.type.isBlank()) return "El tipo de recordatorio es obligatorio"
+        if (request.scheduledAt == null && request.dueAt == null) return "scheduledAt o dueAt es obligatorio"
+        if (request.scheduledAt != null && !isValidInstant(request.scheduledAt)) return "scheduledAt no es valido"
+        if (request.dueAt != null && !isValidInstant(request.dueAt)) return "dueAt no es valido"
         return null
     }
 

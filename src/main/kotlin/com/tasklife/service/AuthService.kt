@@ -6,6 +6,7 @@ import com.tasklife.config.FirebaseConfig
 import com.tasklife.models.FirebaseAuthRequest
 import com.tasklife.models.FirebaseAuthResponse
 import com.tasklife.repository.UserRepository
+import com.tasklife.support.AuthSession
 import com.tasklife.support.InvalidFirebaseTokenException
 
 class AuthService(
@@ -50,10 +51,14 @@ class AuthService(
             provider = "google",
         )
 
+        val (accessToken, expiresAt) = AuthSession.issueToken(uid, email)
+
         return FirebaseAuthResponse(
             uid = uid,
             email = email,
             emailVerified = firebaseUser?.isEmailVerified ?: (decoded.claims["email_verified"] as? Boolean ?: false),
+            accessToken = accessToken,
+            expiresAt = expiresAt.toString(),
             user = syncedUser,
         )
     }

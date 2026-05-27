@@ -4,6 +4,7 @@ import com.tasklife.controllers.UserController
 import com.tasklife.models.CreateUserRequest
 import com.tasklife.models.PushTokenRequest
 import com.tasklife.models.UpdateUserRequest
+import com.tasklife.support.requireBearerUser
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*
 import io.ktor.server.request.receive
@@ -37,6 +38,7 @@ fun Application.configureUserRoutes() {
                     "Falta userId",
                     status = HttpStatusCode.BadRequest,
                 )
+                if (call.requireBearerUser(userId) == null) return@post
 
                 try {
                     val request = call.receive<PushTokenRequest>()
@@ -58,6 +60,7 @@ fun Application.configureUserRoutes() {
                     "Falta userId",
                     status = HttpStatusCode.BadRequest,
                 )
+                if (call.requireBearerUser(userId) == null) return@get
                 val user = controller.getById(userId)
                 if (user != null) call.respond(user)
                 else call.respondText("Usuario no encontrado", status = HttpStatusCode.NotFound)
@@ -68,6 +71,7 @@ fun Application.configureUserRoutes() {
                     "Falta userId",
                     status = HttpStatusCode.BadRequest,
                 )
+                if (call.requireBearerUser(userId) == null) return@put
                 try {
                     val request = call.receive<UpdateUserRequest>()
                     val updated = controller.update(userId, request)

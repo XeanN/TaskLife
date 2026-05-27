@@ -133,6 +133,8 @@ class UserRepository {
         val now = Timestamp.now()
         val updates = mapOf(
             "pushToken" to token,
+            "pushTokenPlatform" to request.platform,
+            "pushTokenDeviceInfo" to request.deviceInfo,
             "updatedAt" to now,
         )
 
@@ -140,6 +142,8 @@ class UserRepository {
         val cachedCurrent = FirestoreResponseCache.get<User>(userCacheKey(userId))
         val updatedUser = cachedCurrent?.copy(
             pushToken = token,
+            pushTokenPlatform = request.platform ?: cachedCurrent.pushTokenPlatform,
+            pushTokenDeviceInfo = request.deviceInfo ?: cachedCurrent.pushTokenDeviceInfo,
             updatedAt = now.toDate().toString(),
         ) ?: getById(userId)
 
@@ -159,6 +163,14 @@ class UserRepository {
             picture = data["picture"] as? String,
             provider = data["provider"] as? String ?: "email",
             pushToken = data["pushToken"] as? String,
+            pushTokenPlatform = data["pushTokenPlatform"] as? String,
+            pushTokenDeviceInfo = (data["pushTokenDeviceInfo"] as? Map<*, *>)
+                ?.mapNotNull { entry ->
+                    val key = entry.key as? String ?: return@mapNotNull null
+                    val value = entry.value?.toString() ?: return@mapNotNull null
+                    key to value
+                }
+                ?.toMap(),
             createdAt = (data["createdAt"] as? Timestamp)?.toDate()?.toString(),
             updatedAt = (data["updatedAt"] as? Timestamp)?.toDate()?.toString(),
         )

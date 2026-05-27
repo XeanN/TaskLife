@@ -1,14 +1,20 @@
 package com.tasklife.routes
 
 import com.tasklife.controllers.InsightsController
+import com.tasklife.controllers.ReminderController
+import com.tasklife.models.ReminderCreateRequest
+import com.tasklife.support.requireBearerUser
+import com.tasklife.support.Validation
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*
+import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.*
 
 fun Application.configureInsightsRoutes() {
     val controller = InsightsController()
+    val reminderController = ReminderController()
 
     routing {
         route("/users/{userId}") {
@@ -17,6 +23,7 @@ fun Application.configureInsightsRoutes() {
                     "Falta userId",
                     status = HttpStatusCode.BadRequest,
                 )
+                if (call.requireBearerUser(userId) == null) return@get
                 call.respond(controller.stats(userId))
             }
 
@@ -25,6 +32,7 @@ fun Application.configureInsightsRoutes() {
                     "Falta userId",
                     status = HttpStatusCode.BadRequest,
                 )
+                if (call.requireBearerUser(userId) == null) return@get
                 call.respond(controller.weeklyReport(userId))
             }
 
@@ -33,7 +41,36 @@ fun Application.configureInsightsRoutes() {
                     "Falta userId",
                     status = HttpStatusCode.BadRequest,
                 )
-                call.respond(controller.dueReminders(userId))
+                if (call.requireBearerUser(userId) == null) return@get
+                val fromIso = call.request.queryParameters["from"]
+                val toIso = call.request.queryParameters["to"]
+                call.respond(reminderController.due(userId, fromIso, toIso))
+            }
+
+            post("/reminders") {
+                val userId = call.parameters["userId"] ?: return@post call.respondText(
+                    "Falta userId",
+                    status = HttpStatusCode.BadRequest,
+                )
+                if (call.requireBearerUser(userId) == null) return@post
+                val request = call.receive<ReminderCreateRequest>()
+                val validationError = Validation.validateReminderCreate(request)
+                if (validationError != null) {
+                    return@post call.respondText(validationError, status = HttpStatusCode.BadRequest)
+                }
+                val created = reminderController.create(userId, request)
+                call.respond(HttpStatusCode.Created, created)
+            }
+
+            post("/reminders/run") {
+                val userId = call.parameters["userId"] ?: return@post call.respondText(
+                    "Falta userId",
+                    status = HttpStatusCode.BadRequest,
+                )
+                if (call.requireBearerUser(userId) == null) return@post
+                val fromIso = call.request.queryParameters["from"]
+                val toIso = call.request.queryParameters["to"]
+                call.respond(reminderController.run(userId, fromIso, toIso))
             }
 
             get("/reminders/run") {
@@ -41,20 +78,10 @@ fun Application.configureInsightsRoutes() {
                     "Falta userId",
                     status = HttpStatusCode.BadRequest,
                 )
-                val due = controller.dueReminders(userId)
-                var processed = 0
-                val repo = com.tasklife.repository.TaskRepository()
-                val nowIso = java.time.Instant.now().toString()
-                due.reminders.forEach { item ->
-                    val parts = item.taskId to item.areaId
-                    // taskId contains id only; areaId is separate
-                    val taskId = item.taskId
-                    val areaId = item.areaId
-                    val ok = repo.markReminderSent(userId, areaId, taskId, item.offsetMs, nowIso)
-                    if (ok) processed++
-                }
-
-                call.respond(mapOf("processed" to processed, "found" to due.reminders.size))
+                if (call.requireBearerUser(userId) == null) return@get
+                val fromIso = call.request.queryParameters["from"]
+                val toIso = call.request.queryParameters["to"]
+                call.respond(reminderController.run(userId, fromIso, toIso))
             }
         }
     }

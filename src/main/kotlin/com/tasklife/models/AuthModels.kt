@@ -12,5 +12,8 @@ data class FirebaseAuthResponse(
     val uid: String,
     val email: String,
     val emailVerified: Boolean,
+    val accessToken: String,
+    val tokenType: String = "Bearer",
+    val expiresAt: String,
     val user: User,
 )

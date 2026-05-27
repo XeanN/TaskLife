@@ -3,6 +3,7 @@ package com.tasklife.routes
 import com.tasklife.controllers.TaskController
 import com.tasklife.models.NewTask
 import com.tasklife.models.TaskUpdate
+import com.tasklife.support.requireBearerUser
 import com.tasklife.support.Validation
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*
@@ -25,6 +26,7 @@ fun Application.configureTaskRoutes() {
                     "Falta areaId",
                     status = HttpStatusCode.BadRequest,
                 )
+                if (call.requireBearerUser(userId) == null) return@get
                 val limit = call.request.queryParameters["limit"]?.toIntOrNull()
                 val offset = call.request.queryParameters["offset"]?.toIntOrNull()
                 val paginationError = Validation.validatePagination(limit, offset)
@@ -43,6 +45,7 @@ fun Application.configureTaskRoutes() {
                     "Falta areaId",
                     status = HttpStatusCode.BadRequest,
                 )
+                if (call.requireBearerUser(userId) == null) return@post
                 val task = call.receive<NewTask>()
                 val validationError = Validation.validateNewTask(task)
                 if (validationError != null) {
@@ -64,6 +67,7 @@ fun Application.configureTaskRoutes() {
                     "Falta taskId",
                     status = HttpStatusCode.BadRequest,
                 )
+                if (call.requireBearerUser(userId) == null) return@get
                 val task = controller.get(userId, areaId, taskId)
                 if (task != null) call.respond(task)
                 else call.respondText("No encontrado", status = HttpStatusCode.NotFound)
@@ -82,6 +86,7 @@ fun Application.configureTaskRoutes() {
                     "Falta taskId",
                     status = HttpStatusCode.BadRequest,
                 )
+                if (call.requireBearerUser(userId) == null) return@patch
                 val changes = call.receive<TaskUpdate>()
                 val validationError = Validation.validateTaskUpdate(changes)
                 if (validationError != null) {
@@ -108,6 +113,7 @@ fun Application.configureTaskRoutes() {
                     "Falta taskId",
                     status = HttpStatusCode.BadRequest,
                 )
+                if (call.requireBearerUser(userId) == null) return@put
                 val changes = call.receive<TaskUpdate>()
                 val validationError = Validation.validateTaskUpdate(changes)
                 if (validationError != null) {
@@ -134,6 +140,7 @@ fun Application.configureTaskRoutes() {
                     "Falta taskId",
                     status = HttpStatusCode.BadRequest,
                 )
+                if (call.requireBearerUser(userId) == null) return@delete
                 if (controller.delete(userId, areaId, taskId)) {
                     call.respondText("Eliminado", status = HttpStatusCode.OK)
                 } else {

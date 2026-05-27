@@ -10,6 +10,8 @@ data class User(
     val picture: String? = null,
     val provider: String = "email",
     val pushToken: String? = null,
+    val pushTokenPlatform: String? = null,
+    val pushTokenDeviceInfo: Map<String, String>? = null,
     val createdAt: String? = null,
     val updatedAt: String? = null,
 )
@@ -23,6 +25,8 @@ data class UpdateUserRequest(
 @Serializable
 data class PushTokenRequest(
     val token: String,
+    val platform: String? = null,
+    val deviceInfo: Map<String, String>? = null,
 )
 
 @Serializable
