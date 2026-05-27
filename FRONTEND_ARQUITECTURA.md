@@ -203,6 +203,16 @@ El frontend ya soporta dos caminos, ambos ligados a tareas o a pruebas controlad
 
 La pantalla `app/settings/stats.tsx` lista recordatorios pendientes y la pantalla `app/settings/notifications.tsx` permite probar una alarma.
 
+Estado final de integración del backend para recordatorios:
+
+- `POST /auth/firebase` devuelve el `userId` que el frontend usa para asociar tareas, recordatorios y push token.
+- `GET /users/{userId}/reminders/due` devuelve los recordatorios pendientes visibles en estadísticas.
+- `GET /users/{userId}/reminders/run` permite ejecutar o simular el procesamiento manual de recordatorios.
+- `POST /users/{userId}/push-token` guarda el token del dispositivo para futuras notificaciones push.
+- Las fechas se validan en JSON y el backend responde de forma consistente, así que el frontend ya puede consumir estos datos sin cambiar el contrato principal.
+
+Con esto, la parte de recordatorios queda cerrada del lado del frontend y lista para la presentación.
+
 ## Caché y rendimiento
 
 El frontend usa caché en memoria por usuario para reducir lecturas innecesarias.

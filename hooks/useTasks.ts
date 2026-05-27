@@ -90,30 +90,48 @@ async function createAutoDueReminder(
   formData: TaskFormData,
   createdTask?: any,
 ) {
-  const reminderDate = buildOneDayReminderDate(formData.dueDate);
-  if (!reminderDate) return;
+  if (!formData.dueDate) return;
 
   const title = formData.title?.trim() || "Tarea";
   const taskId = String(createdTask?.id || createdTask?.taskId || `${formData.areaId}-${Date.now()}`);
 
-  const payload = {
-    id: `task-${taskId}-due-1d`,
-    taskId,
-    type: "TASK_DUE_ONE_DAY",
-    title: `Te queda 1 día: ${title}`,
-    body: `La tarea \"${title}\" vence mañana.`,
-    dueAt: reminderDate.toISOString(),
-    status: "pending",
-  };
+  // Build list of reminder dates: use programmable reminders if provided, otherwise default 1 day before 09:00
+  const reminderSpecs = formData.reminders && Array.isArray(formData.reminders) && formData.reminders.length > 0
+    ? formData.reminders
+    : [{ offsetDays: 1, hour: 9, minute: 0 }];
+
+  const now = Date.now();
+  const payloads: any[] = [];
+
+  for (const spec of reminderSpecs) {
+    const parsedDue = new Date(formData.dueDate as any);
+    if (Number.isNaN(parsedDue.getTime())) continue;
+    const reminderDate = new Date(parsedDue);
+    reminderDate.setDate(reminderDate.getDate() - (spec.offsetDays || 0));
+    reminderDate.setHours(typeof spec.hour === 'number' ? spec.hour : 9, typeof spec.minute === 'number' ? spec.minute : 0, 0, 0);
+    if (reminderDate.getTime() <= now) continue;
+
+    const payload = {
+      id: `task-${taskId}-due-${spec.offsetDays}d-${reminderDate.getTime()}`,
+      taskId,
+      type: `TASK_DUE_${spec.offsetDays}D`,
+      title: `Te queda ${spec.offsetDays} día(s): ${title}`,
+      body: `La tarea \"${title}\" vence el ${new Date(formData.dueDate as any).toLocaleDateString()}.`,
+      dueAt: reminderDate.toISOString(),
+      status: "pending",
+    };
+
+    payloads.push(payload);
+  }
+
+  if (payloads.length === 0) return;
 
   try {
-    const createdReminder = await crearReminder(userId, payload);
-    await syncReminderNotifications([createdReminder || payload]);
+    const created = await Promise.all(payloads.map((p) => crearReminder(userId, p)));
+    // created may contain fallback objects; schedule notifications for all
+    await syncReminderNotifications(created.map((c, i) => c || payloads[i]));
   } catch (err: any) {
-    console.warn(
-      "⚠️ No se pudo crear/sincronizar recordatorio automático de tarea:",
-      err?.message || err,
-    );
+    console.warn("⚠️ No se pudo crear/sincronizar recordatorios automáticos de tarea:", err?.message || err);
   }
 }
 

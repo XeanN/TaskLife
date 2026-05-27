@@ -13,6 +13,27 @@ export function normalizeRemindersPayload(payload: any) {
   return [];
 }
 
+// Local fallback store for reminders created client-side when backend is unreachable
+const localRemindersStore: Record<string, any[]> = {};
+
+export function addLocalReminder(userId: string, reminder: any) {
+  if (!userId) return;
+  if (!localRemindersStore[userId]) localRemindersStore[userId] = [];
+  // Avoid duplicates by id
+  if (localRemindersStore[userId].some((r) => r.id === reminder.id)) return;
+  localRemindersStore[userId].push(reminder);
+}
+
+export function getLocalReminders(userId: string) {
+  return localRemindersStore[userId] ? [...localRemindersStore[userId]] : [];
+}
+
+export function removeLocalReminder(userId: string, reminderId: string) {
+  if (!userId || !reminderId) return;
+  if (!localRemindersStore[userId]) return;
+  localRemindersStore[userId] = localRemindersStore[userId].filter((r) => r.id !== reminderId);
+}
+
 const handleResponse = async (res) => {
   const text = await res.text();
 
@@ -58,8 +79,11 @@ export const obtenerRemindersDue = async (userId: string) => {
 
     const data = await handleResponse(res);
     const reminders = normalizeRemindersPayload(data);
-    console.log("✅ Due reminders fetched:", reminders.length);
-    return reminders;
+    // Merge local fallback reminders (created on device when backend failed)
+    const local = getLocalReminders(userId) || [];
+    const merged = [...reminders, ...local];
+    console.log("✅ Due reminders fetched (backend+local):", merged.length);
+    return merged;
   } catch (err: any) {
     console.error("❌ Error fetching due reminders:", err.message);
     throw err;
@@ -112,19 +136,33 @@ export const crearReminder = async (userId: string, reminder: any) => {
 
     const data = await handleResponse(res);
     // Normalizar respuesta: puede venir como array o como objeto wrapper
-    if (Array.isArray(data)) return data[0] || null;
-    if (data && typeof data === "object") {
+    let created = null as any;
+    if (Array.isArray(data)) created = data[0] || null;
+    else if (data && typeof data === "object") {
       // Si el backend devuelve { reminders: [...] } u otras envolturas
       const normalized = normalizeRemindersPayload(data);
-      if (Array.isArray(normalized) && normalized.length > 0) return normalized[0];
-      return data;
+      if (Array.isArray(normalized) && normalized.length > 0) created = normalized[0];
+      else created = data;
+    } else {
+      created = data;
     }
-    return data;
+
+    // If we created a reminder on backend, remove matching local fallback if present
+    try {
+      const createdId = created?.id || reminder.id;
+      if (createdId) {
+        removeLocalReminder(userId, createdId);
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    return created;
   } catch (err: any) {
     console.warn("⚠️ No se pudo crear reminder en backend, fallback local:", err?.message || err);
     // Fallback: return a local reminder object so the UI can schedule it
     const now = new Date().toISOString();
-    return {
+    const fallback = {
       id: reminder.id || `local-${Date.now()}`,
       title: reminder.title || reminder.type || "Recordatorio TaskLife",
       body: reminder.body || reminder.message || "Tienes una tarea pendiente.",
@@ -132,5 +170,11 @@ export const crearReminder = async (userId: string, reminder: any) => {
       scheduledAt: reminder.scheduledAt || reminder.dueAt || now,
       status: reminder.status || "pending",
     };
+    try {
+      addLocalReminder(userId, fallback);
+    } catch (e) {
+      // ignore
+    }
+    return fallback;
   }
 };

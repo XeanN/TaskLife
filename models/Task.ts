@@ -5,6 +5,8 @@ export type TaskFormData = {
   description: string;
   priority: Priority;
   dueDate?: Date;
+  // Optional programmable reminders: array of presets { offsetDays, hour, minute }
+  reminders?: { offsetDays: number; hour?: number; minute?: number }[];
   labelIds: string[];
   areaId: string;
 };

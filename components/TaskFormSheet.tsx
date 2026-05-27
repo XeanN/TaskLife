@@ -65,6 +65,11 @@ export default function TaskFormSheet({
   const [labelIds, setLabelIds] = useState<string[]>([]);
   const [showDate, setShowDate] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selectedReminders, setSelectedReminders] = useState<{
+    d2: boolean;
+    d1: boolean;
+    d0: boolean;
+  }>({ d2: false, d1: true, d0: false });
   const [titleError, setTitleError] = useState<string | null>(null);
 
   // Reset al abrir
@@ -78,6 +83,7 @@ export default function TaskFormSheet({
         initial?.dueDate ? new Date(initial.dueDate as any) : undefined,
       );
       setLabelIds(initial?.labelIds ?? []);
+      setSelectedReminders({ d2: false, d1: true, d0: false });
       setShowDate(false);
       setTitleError(null);
     }
@@ -105,14 +111,24 @@ export default function TaskFormSheet({
     setTitleError(null);
     setSaving(true);
     try {
-      await onSave({
+      const remindersArr: { offsetDays: number; hour?: number; minute?: number }[] = [];
+      if (dueDate) {
+        if (selectedReminders.d2) remindersArr.push({ offsetDays: 2, hour: 9, minute: 0 });
+        if (selectedReminders.d1) remindersArr.push({ offsetDays: 1, hour: 9, minute: 0 });
+        if (selectedReminders.d0) remindersArr.push({ offsetDays: 0, hour: 9, minute: 0 });
+      }
+
+      const payload: any = {
         title: normalizedTitle,
         description: description.trim(),
         priority: normalizePriority(priority),
         areaId,
         dueDate,
         labelIds,
-      });
+      };
+      if (remindersArr.length > 0) payload.reminders = remindersArr;
+
+      await onSave(payload);
       // Si llegó acá, fue exitoso - cerrar modal
       onClose();
     } catch (err: any) {
@@ -122,13 +138,6 @@ export default function TaskFormSheet({
       setSaving(false);
     }
   };
-
-  const normalizedDueDate =
-    dueDate instanceof Date
-      ? dueDate
-      : dueDate
-        ? new Date(dueDate)
-        : undefined;
 
   const formattedDate =
     normalizedDueDate && !Number.isNaN(normalizedDueDate.getTime())
@@ -368,6 +377,46 @@ export default function TaskFormSheet({
                 alarma 1 día antes para esa tarea.
               </Text>
             </View>
+
+              {/* Recordatorios programables */}
+              <View style={s.section}>
+                <Text style={[s.sectionLabel, { color: theme.textSecond }]}>Recordatorios</Text>
+                <View style={s.row}>
+                  <Pressable
+                    onPress={() => setSelectedReminders((p) => ({ ...p, d2: !p.d2 }))}
+                    style={[
+                      s.priorityChip,
+                      { borderColor: selectedReminders.d2 ? activeColor : theme.border },
+                      selectedReminders.d2 && { backgroundColor: activeColor },
+                    ]}
+                  >
+                    <Text style={[s.priorityChipText, selectedReminders.d2 && { color: "#fff" }]}>2 días antes 09:00</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => setSelectedReminders((p) => ({ ...p, d1: !p.d1 }))}
+                    style={[
+                      s.priorityChip,
+                      { borderColor: selectedReminders.d1 ? activeColor : theme.border },
+                      selectedReminders.d1 && { backgroundColor: activeColor },
+                    ]}
+                  >
+                    <Text style={[s.priorityChipText, selectedReminders.d1 && { color: "#fff" }]}>1 día antes 09:00</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => setSelectedReminders((p) => ({ ...p, d0: !p.d0 }))}
+                    style={[
+                      s.priorityChip,
+                      { borderColor: selectedReminders.d0 ? activeColor : theme.border },
+                      selectedReminders.d0 && { backgroundColor: activeColor },
+                    ]}
+                  >
+                    <Text style={[s.priorityChipText, selectedReminders.d0 && { color: "#fff" }]}>En la fecha 09:00</Text>
+                  </Pressable>
+                </View>
+                <Text style={[s.helperText, { color: theme.textThird }]}>Selecciona uno o varios recordatorios automáticos para esta tarea.</Text>
+              </View>
 
             {/* Etiquetas */}
             {labels.length > 0 && (
