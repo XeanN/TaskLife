@@ -179,26 +179,27 @@ Ejemplo de creación:
 4. `taskService.ts` hace `POST` al backend.
 5. El hook refresca la caché local y actualiza la UI.
 
-### Automatización de recordatorios
+### Automatización de alarmas sobre tareas
 
-Cuando se crea una tarea con fecha de vencimiento, el frontend puede generar automáticamente un recordatorio local de aviso 1 día antes.
+Cuando se crea o edita una tarea con fecha de vencimiento, el frontend programa una alarma asociada a esa misma tarea, no a un recordatorio independiente.
 
 El flujo actual es:
 
-1. Se crea la tarea.
-2. `useTasks.ts` calcula si existe una fecha válida para recordar.
-3. Si aplica, arma un payload de recordatorio tipo `TASK_DUE_ONE_DAY`.
-4. `services/remindersService.ts` intenta persistirlo en backend.
+1. El usuario guarda una tarea con `dueDate`.
+2. `useTasks.ts` calcula si existe una fecha válida para avisar 1 día antes.
+3. Si aplica, arma un payload de alarma tipo `TASK_DUE_ONE_DAY` ligado al `taskId`.
+4. `services/remindersService.ts` intenta persistir esa alarma en backend.
 5. `services/notificationsService.ts` programa la notificación local.
 
-Esto hace que la app sea útil incluso en demo o cuando el backend no tenga el scheduler de push totalmente terminado.
+Esto mantiene la experiencia centrada en la tarea. La pantalla de recordatorios queda como apoyo para ver pendientes y probar alarmas, pero la acción principal sale de la tarea misma.
 
-## Recordatorios y notificaciones
+### Recordatorios y notificaciones
 
-El frontend ya soporta dos caminos:
+El frontend ya soporta dos caminos, ambos ligados a tareas o a pruebas controladas:
 
 - **Recordatorios consultados desde backend**: `GET /users/{userId}/reminders/due`.
-- **Recordatorios locales de prueba o fallback**: creación manual desde la app.
+- **Alarmas automáticas derivadas de tareas**: se crean al guardar tareas con fecha de vencimiento.
+- **Notificación local de prueba**: botón de verificación en la pantalla de notificaciones.
 
 La pantalla `app/settings/stats.tsx` lista recordatorios pendientes y la pantalla `app/settings/notifications.tsx` permite probar una alarma.
 
