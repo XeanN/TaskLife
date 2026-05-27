@@ -111,6 +111,14 @@ export const crearReminder = async (userId: string, reminder: any) => {
     });
 
     const data = await handleResponse(res);
+    // Normalizar respuesta: puede venir como array o como objeto wrapper
+    if (Array.isArray(data)) return data[0] || null;
+    if (data && typeof data === "object") {
+      // Si el backend devuelve { reminders: [...] } u otras envolturas
+      const normalized = normalizeRemindersPayload(data);
+      if (Array.isArray(normalized) && normalized.length > 0) return normalized[0];
+      return data;
+    }
     return data;
   } catch (err: any) {
     console.warn("⚠️ No se pudo crear reminder en backend, fallback local:", err?.message || err);
