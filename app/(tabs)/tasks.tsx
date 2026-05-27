@@ -6,14 +6,15 @@ import { AREAS, PRIORITIES } from "@/models/Area";
 import { Task, TaskFormData } from "@/models/Task";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
-  Alert,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -32,7 +33,8 @@ function TaskRow({
   onPress: () => void;
   theme: any;
 }) {
-  const p = PRIORITIES.find((x) => x.value === task.priority)!;
+  const priority = (task.priority as any) || "baja";
+  const p = PRIORITIES.find((x) => x.value === priority) || PRIORITIES[2];
   const overdue =
     task.dueDate && !task.done && new Date(task.dueDate) < new Date();
 
@@ -161,13 +163,17 @@ const styles_row = StyleSheet.create({
 export default function TasksScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const { allTasks, toggle, remove, saveQuick } = useAllTasks();
+  const { allTasks, toggle, remove, saveQuick, loading, error } =
+    useAllTasks();
   const { labels } = useLabels();
   const s = makeStyles(theme, insets.bottom);
 
   const [areaFilter, setAreaFilter] = useState<AreaFilter>("all");
   const [showDone, setShowDone] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  // NOTE: Disabled auto-refetch on focus to prevent Firestore quota exhaustion
+  // Tasks only refetch after CRUD operations (create, edit, delete)
 
   const flatTasks = useMemo(
     () =>
@@ -289,15 +295,31 @@ export default function TasksScreen() {
           />
         )}
         ListEmptyComponent={
-          <View style={s.empty}>
-            <Ionicons
-              name="checkmark-done-circle-outline"
-              size={56}
-              color={theme.border}
-            />
-            <Text style={s.emptyText}>No hay tareas aquí</Text>
-            <Text style={s.emptyHint}>Toca + para agregar una</Text>
-          </View>
+          loading ? (
+            <View style={s.empty}>
+              <ActivityIndicator color={theme.primary} />
+              <Text style={s.emptyText}>Cargando tareas...</Text>
+            </View>
+          ) : error ? (
+            <View style={s.empty}>
+              <Ionicons name="cloud-offline-outline" size={56} color={theme.border} />
+              <Text style={s.emptyText}>No se pudieron cargar</Text>
+              <Text style={s.emptyHint}>Revisa tu conexión y vuelve a intentar</Text>
+              <Pressable style={s.retryBtn} onPress={fetchTasks}>
+                <Text style={s.retryText}>Reintentar</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={s.empty}>
+              <Ionicons
+                name="checkmark-done-circle-outline"
+                size={56}
+                color={theme.border}
+              />
+              <Text style={s.emptyText}>No hay tareas aquí</Text>
+              <Text style={s.emptyHint}>Toca + para agregar una</Text>
+            </View>
+          )
         }
       />
 
@@ -375,6 +397,14 @@ const makeStyles = (t: ReturnType<typeof useTheme>["theme"], bottomInset: number
     empty: { alignItems: "center", paddingTop: 60, gap: 8 },
     emptyText: { fontSize: 16, color: t.textThird, fontWeight: "600" },
     emptyHint: { fontSize: 13, color: t.border },
+    retryBtn: {
+      backgroundColor: t.primary,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 999,
+      marginTop: 6,
+    },
+    retryText: { color: "#fff", fontWeight: "700", fontSize: 13 },
     fab: {
       position: "absolute",
       // Mantiene el FAB por encima de la barra inferior del sistema.

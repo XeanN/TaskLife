@@ -1,3 +1,4 @@
+import { ErrorAlert, useErrorAlert } from "@/components/ErrorAlert";
 import { useTheme } from "@/context/ThemeContext";
 import { useLabels } from "@/hooks/useLabels";
 import { LABEL_COLORS, Label } from "@/models/Label";
@@ -32,6 +33,7 @@ export default function LabelSheet({
 }: Props) {
   const { theme } = useTheme();
   const { create, remove, isLoading } = useLabels();
+  const errorAlert = useErrorAlert();
   const s = makeStyles(theme);
 
   const [newName, setNewName] = useState("");
@@ -46,7 +48,7 @@ export default function LabelSheet({
       setNewName("");
       setNewColor(LABEL_COLORS[0]);
     } catch (e: any) {
-      Alert.alert("Error", e.message);
+      errorAlert.show(e);
     } finally {
       setCreating(false);
     }
@@ -74,6 +76,17 @@ export default function LabelSheet({
       animationType="slide"
       onRequestClose={onClose}
     >
+      <ErrorAlert
+        visible={errorAlert.visible}
+        error={errorAlert.error}
+        onDismiss={errorAlert.hide}
+        onRetry={() => {
+          errorAlert.hide();
+          handleCreate();
+        }}
+        autoHideDuration={0}
+      />
+
       <View style={s.overlay}>
         <Pressable style={s.backdrop} onPress={onClose} />
 

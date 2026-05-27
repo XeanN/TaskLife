@@ -1,11 +1,15 @@
+import { ErrorAlert, useErrorAlert } from "@/components/ErrorAlert";
 import { useTheme } from "@/context/ThemeContext";
 import { AREAS, PRIORITIES } from "@/models/Area";
 import { Label } from "@/models/Label";
 import { Task, TaskFormData } from "@/models/Task";
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import DateTimePicker, {
+    DateTimePickerAndroid,
+} from "@react-native-community/datetimepicker";
 import { useEffect, useState } from "react";
 import {
+    ActivityIndicator,
     KeyboardAvoidingView,
     Modal,
     Platform,
@@ -16,6 +20,19 @@ import {
     TextInput,
     View,
 } from "react-native";
+
+const normalizePriority = (value: unknown): "alta" | "media" | "baja" => {
+  if (value === "alta" || value === "media" || value === "baja") {
+    return value;
+  }
+  if (typeof value === "string") {
+    const lower = value.toLowerCase();
+    if (lower === "alta" || lower === "media" || lower === "baja") {
+      return lower;
+    }
+  }
+  return "media";
+};
 
 interface Props {
   visible: boolean;
@@ -38,6 +55,7 @@ export default function TaskFormSheet({
 }: Props) {
   const { theme } = useTheme();
   const s = makeStyles(theme);
+  const errorAlert = useErrorAlert();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -47,22 +65,29 @@ export default function TaskFormSheet({
   const [labelIds, setLabelIds] = useState<string[]>([]);
   const [showDate, setShowDate] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [titleError, setTitleError] = useState<string | null>(null);
 
   // Reset al abrir
   useEffect(() => {
     if (visible) {
       setTitle(initial?.title ?? "");
       setDescription(initial?.description ?? "");
-      setPriority(initial?.priority ?? "media");
+      setPriority(normalizePriority(initial?.priority));
       setAreaId(initial?.areaId ?? defaultAreaId);
-      setDueDate(initial?.dueDate);
+      setDueDate(
+        initial?.dueDate ? new Date(initial.dueDate as any) : undefined,
+      );
       setLabelIds(initial?.labelIds ?? []);
       setShowDate(false);
+      setTitleError(null);
     }
   }, [visible, initial, defaultAreaId]);
 
   const activeColor =
     areaColor ?? AREAS.find((a) => a.id === areaId)?.color ?? theme.primary;
+
+  const minDate = new Date();
+  minDate.setHours(0, 0, 0, 0);
 
   const toggleLabel = (id: string) => {
     setLabelIds((prev) =>
@@ -71,29 +96,68 @@ export default function TaskFormSheet({
   };
 
   const handleSave = async () => {
-    if (!title.trim()) return;
+    const normalizedTitle = title.trim();
+    if (!normalizedTitle) {
+      setTitleError("Escribe un nombre para la tarea");
+      return;
+    }
+
+    setTitleError(null);
     setSaving(true);
     try {
       await onSave({
-        title: title.trim(),
+        title: normalizedTitle,
         description: description.trim(),
-        priority,
+        priority: normalizePriority(priority),
         areaId,
         dueDate,
         labelIds,
       });
+      // Si llegó acá, fue exitoso - cerrar modal
+      onClose();
+    } catch (err: any) {
+      // Mostrar error en alert
+      errorAlert.show(err);
     } finally {
       setSaving(false);
     }
   };
 
-  const formattedDate = dueDate
-    ? dueDate.toLocaleDateString("es-ES", {
-        weekday: "short",
-        day: "numeric",
-        month: "long",
-      })
-    : null;
+  const normalizedDueDate =
+    dueDate instanceof Date
+      ? dueDate
+      : dueDate
+        ? new Date(dueDate)
+        : undefined;
+
+  const formattedDate =
+    normalizedDueDate && !Number.isNaN(normalizedDueDate.getTime())
+      ? normalizedDueDate.toLocaleDateString("es-ES", {
+          weekday: "short",
+          day: "numeric",
+          month: "long",
+        })
+      : null;
+
+  const openDatePicker = () => {
+    const currentValue = normalizedDueDate ?? new Date();
+
+    if (Platform.OS === "android") {
+      DateTimePickerAndroid.open({
+        value: currentValue,
+        mode: "date",
+        minimumDate: minDate,
+        onChange: (_, selectedDate) => {
+          if (selectedDate) {
+            setDueDate(selectedDate);
+          }
+        },
+      });
+      return;
+    }
+
+    setShowDate(true);
+  };
 
   return (
     <Modal
@@ -102,6 +166,17 @@ export default function TaskFormSheet({
       animationType="slide"
       onRequestClose={onClose}
     >
+      <ErrorAlert
+        visible={errorAlert.visible}
+        error={errorAlert.error}
+        onDismiss={errorAlert.hide}
+        onRetry={() => {
+          errorAlert.hide();
+          handleSave();
+        }}
+        autoHideDuration={0}
+      />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={s.overlay}
@@ -130,15 +205,28 @@ export default function TaskFormSheet({
             <TextInput
               style={[
                 s.titleInput,
-                { color: theme.text, borderBottomColor: theme.border },
+                {
+                  color: theme.text,
+                  borderBottomColor: titleError ? theme.danger : theme.border,
+                },
               ]}
               placeholder="Nombre de la tarea"
               placeholderTextColor={theme.textThird}
               value={title}
-              onChangeText={setTitle}
+              onChangeText={(text) => {
+                setTitle(text);
+                if (titleError && text.trim()) {
+                  setTitleError(null);
+                }
+              }}
               autoFocus
               multiline
             />
+            {titleError && (
+              <Text style={[s.fieldError, { color: theme.danger }]}>
+                {titleError}
+              </Text>
+            )}
 
             {/* Descripción */}
             <TextInput
@@ -230,7 +318,7 @@ export default function TaskFormSheet({
                       borderColor: theme.border,
                     },
                   ]}
-                  onPress={() => setShowDate(true)}
+                  onPress={openDatePicker}
                 >
                   <Ionicons
                     name="calendar-outline"
@@ -249,7 +337,9 @@ export default function TaskFormSheet({
                 {dueDate && (
                   <Pressable
                     style={s.clearDate}
-                    onPress={() => setDueDate(undefined)}
+                    onPress={() => {
+                      setDueDate(undefined);
+                    }}
                   >
                     <Ionicons
                       name="close-circle"
@@ -261,13 +351,15 @@ export default function TaskFormSheet({
               </View>
               {showDate && (
                 <DateTimePicker
-                  value={dueDate ?? new Date()}
+                  value={normalizedDueDate ?? new Date()}
                   mode="date"
                   display="default"
-                  minimumDate={new Date()}
+                  minimumDate={minDate}
                   onChange={(_, date) => {
                     setShowDate(false);
-                    if (date) setDueDate(date);
+                    if (date) {
+                      setDueDate(date);
+                    }
                   }}
                 />
               )}
@@ -337,7 +429,11 @@ export default function TaskFormSheet({
               onPress={handleSave}
               disabled={!title.trim() || saving}
             >
-              <Ionicons name="arrow-up" size={20} color="#fff" />
+              {saving ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Ionicons name="arrow-up" size={20} color="#fff" />
+              )}
             </Pressable>
           </View>
         </View>
@@ -396,6 +492,12 @@ const makeStyles = (t: ReturnType<typeof useTheme>["theme"]) =>
       fontSize: 14,
       minHeight: 36,
       marginBottom: 20,
+    },
+    fieldError: {
+      fontSize: 12,
+      fontWeight: "600",
+      marginTop: -12,
+      marginBottom: 16,
     },
     section: {
       marginBottom: 20,

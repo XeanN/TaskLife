@@ -1,25 +1,26 @@
+import { ErrorAlert, useErrorAlert } from "@/components/ErrorAlert";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
   const { login, isLoading } = useAuth();
   const { theme } = useTheme();
   const s = makeStyles(theme);
+  const errorAlert = useErrorAlert();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,12 +30,20 @@ export default function LoginScreen() {
     try {
       await login(email, password);
     } catch (error: any) {
-      Alert.alert("Error", error.message);
+      errorAlert.show(error);
     }
   };
 
   return (
     <SafeAreaView style={s.container}>
+      <ErrorAlert
+        visible={errorAlert.visible}
+        error={errorAlert.error}
+        onDismiss={errorAlert.hide}
+        onRetry={handleLogin}
+        autoHideDuration={0}
+      />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={s.inner}

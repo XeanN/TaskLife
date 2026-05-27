@@ -5,6 +5,7 @@ import { AREAS } from "@/models/Area";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import {
+  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -21,6 +22,12 @@ const MENU_ITEMS = [
     icon: "notifications-outline",
     label: "Notificaciones",
     route: "/settings/notifications",
+  },
+  {
+    id: "backend",
+    icon: "server-outline",
+    label: "Backend / API",
+    route: "/settings/backend",
   },
   {
     id: "privacy",
@@ -45,8 +52,11 @@ const MENU_ITEMS = [
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const { theme, dark, toggle } = useTheme();
-  const { allTasks } = useAllTasks();
+  const { allTasks, loading, error } = useAllTasks();
   const s = makeStyles(theme);
+
+  // NOTE: Disabled auto-refetch on focus to prevent Firestore quota exhaustion
+  // Tasks only refetch after CRUD operations (create, edit, delete)
 
   const totalDone = Object.values(allTasks)
     .flat()
@@ -109,6 +119,24 @@ export default function ProfileScreen() {
       >
         <Text style={s.screenTitle}>Mi perfil</Text>
 
+        {loading && (
+          <View style={s.statusCard}>
+            <ActivityIndicator color={theme.primary} />
+            <Text style={s.statusText}>Actualizando estadísticas...</Text>
+          </View>
+        )}
+
+        {!loading && error && (
+          <View style={s.statusCard}>
+            <Text style={[s.statusText, { color: theme.danger }]}>
+              No se pudieron cargar las estadísticas.
+            </Text>
+            <Pressable style={s.retryBtn} onPress={fetchTasks}>
+              <Text style={s.retryText}>Reintentar</Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* Avatar */}
         <View style={s.avatarSection}>
           <View style={s.avatarCircle}>
@@ -145,6 +173,19 @@ export default function ProfileScreen() {
             </View>
           ))}
         </View>
+
+        {/* Botón de Estadísticas Detalladas */}
+        <Pressable
+          style={({ pressed }) => [
+            s.detailedStatsBtn,
+            pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
+          ]}
+          onPress={() => router.push("/settings/stats")}
+        >
+          <Ionicons name="stats-chart" size={18} color="#fff" />
+          <Text style={s.detailedStatsBtnText}>Ver Estadísticas Detalladas</Text>
+          <Ionicons name="chevron-forward" size={18} color="#fff" />
+        </Pressable>
 
         {/* Modo oscuro */}
         <View style={s.darkCard}>
@@ -227,6 +268,32 @@ const makeStyles = (t: ReturnType<typeof useTheme>["theme"]) =>
       marginBottom: 24,
     },
 
+    statusCard: {
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 10,
+      backgroundColor: t.card,
+      borderRadius: 16,
+      paddingVertical: 18,
+      paddingHorizontal: 16,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    statusText: {
+      fontSize: 14,
+      color: t.textSecond,
+      fontWeight: "600",
+      textAlign: "center",
+    },
+    retryBtn: {
+      backgroundColor: t.primary,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 999,
+    },
+    retryText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+
     avatarSection: { alignItems: "center", marginBottom: 24 },
     avatarCircle: {
       width: 90,
@@ -274,6 +341,25 @@ const makeStyles = (t: ReturnType<typeof useTheme>["theme"]) =>
     statLabel: {
       fontSize: 11,
       color: t.textSecond,
+      textAlign: "center",
+    },
+
+    detailedStatsBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 10,
+      backgroundColor: t.primary,
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      marginBottom: 16,
+    },
+    detailedStatsBtnText: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: "#fff",
+      flex: 1,
       textAlign: "center",
     },
 

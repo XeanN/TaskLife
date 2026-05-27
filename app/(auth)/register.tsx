@@ -1,26 +1,27 @@
+import { ErrorAlert, useErrorAlert } from "@/components/ErrorAlert";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
 } from "react-native";
 
 export default function RegisterScreen() {
   const { register, isLoading } = useAuth();
   const { theme } = useTheme();
   const s = makeStyles(theme);
+  const errorAlert = useErrorAlert();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,12 +32,20 @@ export default function RegisterScreen() {
     try {
       await register("Usuario", email, password, confirmPassword);
     } catch (error: any) {
-      Alert.alert("Error", error.message);
+      errorAlert.show(error);
     }
   };
 
   return (
     <SafeAreaView style={s.container}>
+      <ErrorAlert
+        visible={errorAlert.visible}
+        error={errorAlert.error}
+        onDismiss={errorAlert.hide}
+        onRetry={handleRegister}
+        autoHideDuration={0}
+      />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}

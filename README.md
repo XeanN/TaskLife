@@ -13,7 +13,7 @@
 ## 🚀 Funcionalidades
 
 - ✅ Autenticación con **email/contraseña** (Firebase Auth)
-- ✅ Autenticación con **Google**
+- ✅ Autenticación con **Google** real (Firebase + backend; requiere build/dev client)
 - ✅ Sesión persistente — no pide login al reabrir la app
 - ✅ **Home** con grid de áreas y acceso rápido a "Mi día"
 - ✅ **Gestión de tareas** por área con CRUD completo
@@ -27,9 +27,22 @@
 - ✅ **Sección Completadas** colapsable dentro de cada área
 - ✅ **Modo oscuro** completo — toda la app cambia en tiempo real
 - ✅ **Perfil de usuario** con estadísticas y configuración
-- ✅ Datos sincronizados en **Firebase Firestore** en tiempo real
+- ✅ Datos sincronizados a través de **backend REST** (Ktor)
 - ✅ Navegación por **tabs** con Expo Router
 - ✅ Arquitectura **MVC híbrida** (Model + Controller + View + hooks/context)
+
+### Estado actual del front
+
+- ✅ Sprint 1: manejo de errores unificado y limpieza base.
+- ✅ Sprint 2: integración de `stats`, `weekly-report` y `reminders` en el cliente.
+- ✅ Nueva vista de prueba: `app/settings/stats.tsx` con acceso desde Perfil.
+- ✅ Hooks con cache y deduplicación: `useStats`, `useWeeklyReport`, `useReminders`.
+- ✅ Google Sign-In real ya quedó conectado; el mock solo queda como fallback temporal.
+
+### Google Sign-In real
+
+Para probar Google real necesitas un dev client o un build nativo, no Expo Go.
+El flujo usa `POST /auth/firebase` con `idToken` real y luego sincroniza al usuario con el backend.
 
 ---
 
@@ -117,8 +130,8 @@ No es MVC estricto al 100% porque hay accesos directos a `services/` en puntos c
 | Expo SDK                       | 54      | Plataforma de desarrollo                  |
 | Expo Router                    | 6.x     | Navegación basada en archivos             |
 | TypeScript                     | 5.9     | Tipado estático                           |
-| Firebase Auth                  | 12.x    | Autenticación de usuarios                 |
-| Firebase Firestore             | 12.x    | Base de datos en tiempo real              |
+| Firebase Auth                  | 12.x    | Autenticación (login/registro)            |
+| Backend REST (Ktor)            | —       | API para tareas, labels y CRUD            |
 | AsyncStorage                   | 2.2     | Persistencia local (tema, notificaciones) |
 | React Native Reanimated        | 3.x     | Animaciones fluidas                       |
 | Context API                    | —       | Estado global                             |
@@ -127,42 +140,130 @@ No es MVC estricto al 100% porque hay accesos directos a `services/` en puntos c
 
 ---
 
-## 🗄️ Base de datos — Firebase Firestore
+## 🔄 Estado Actual de Integración
 
-### Estructura de datos
 
-```text
-users/
-└── {userId}/
-├── areas/
-│ └── {areaId}/ ← work | education | finance | health
-│ └── tasks/
-│ └── {taskId}/
-└── labels/
-└── {labelId}/ ← etiquetas personalizadas
+Esta copia del repositorio contiene únicamente el cliente frontend de TaskLife (aplicación móvil construida con Expo + React Native). El backend (API REST y la capa que accede a Firestore) vive en un repositorio separado y comunica con esta app a través de `EXPO_PUBLIC_API_URL`.
+
+Qué contiene este repositorio:
+
+- Código cliente: `app/`, `components/`, `hooks/`, `controllers/`, `models/`, `services/` (cliente HTTP que consume la API REST).
+- Configuración local: `.env.local` o `.env.example` para apuntar al backend.
+
+Cómo conectar con el backend (configuración mínima)
+
+1. Abrir `.env.local` (o crear uno si no existe) en la raíz del proyecto.
+
+```bash
+EXPO_PUBLIC_API_URL=http://<BACKEND_HOST>:8080
 ```
 
-### Campos de cada tarea
+2. Reiniciar el bundler de Expo para que cargue las variables de entorno:
 
-| Campo         | Tipo      | Descripción                 |
-| ------------- | --------- | --------------------------- |
-| `title`       | string    | Nombre de la tarea          |
-| `description` | string    | Descripción opcional        |
-| `done`        | boolean   | `true` si está completada   |
-| `priority`    | string    | `alta` \| `media` \| `baja` |
-| `dueDate`     | Timestamp | Fecha de vencimiento        |
-| `labelIds`    | string[]  | IDs de etiquetas asignadas  |
-| `areaId`      | string    | Área a la que pertenece     |
-| `createdAt`   | Timestamp | Fecha de creación           |
-| `updatedAt`   | Timestamp | Última modificación         |
+```bash
+npx expo start --clear
+```
 
-### Campos de cada etiqueta
+3. Para comprobar la conexión desde la máquina de desarrollo puedes usar:
 
-| Campo    | Tipo   | Descripción           |
-| -------- | ------ | --------------------- |
-| `name`   | string | Nombre de la etiqueta |
-| `color`  | string | Color en hex          |
-| `userId` | string | Usuario propietario   |
+```bash
+curl -i $EXPO_PUBLIC_API_URL/health/firebase
+```
+
+Respuesta esperada (ejemplo):
+
+```
+HTTP/1.1 200 OK
+Firebase conectado
+```
+
+Si recibes `Network request failed` en la app, revisa:
+- que el `EXPO_PUBLIC_API_URL` apunte a la IP correcta (si usas emulador Android puede ser `http://10.0.2.2:8080`).
+- que el backend esté corriendo y accesible desde la red local.
+- que no haya políticas de firewall bloqueando el puerto 8080.
+
+Estado actual de la integración en esta rama:
+
+- El frontend ya está preparado para consumir la API REST (las funciones en `services/` usan `fetch()` hacia `EXPO_PUBLIC_API_URL`).
+- El frontend muestra errores de servidor recibidos en texto plano o JSON.
+- El frontend ya consume `stats`, `weekly-report` y `reminders` para la pantalla `app/settings/stats.tsx`.
+- El login de Google ya obtiene credenciales reales, se sincroniza con Firebase y luego llama a `POST /auth/firebase`.
+- NOTA: El backend corre en un repositorio separado; esta rama no contiene código de servidor.
+
+### Resumen operativo rápido
+
+- `EXPO_PUBLIC_API_URL` define la base del backend en `.env.local`.
+- Para teléfono físico en red distinta, el front debe apuntar a una URL pública temporal o a un backend accesible desde Internet.
+- Para desarrollo con dev client, usa `npm run dev-client` o `npx expo start --dev-client --tunnel` si Metro no alcanza por red.
+- La build Android de desarrollo se genera con `npm run build:android:dev`.
+
+### Sprint 2 en curso
+
+Ya quedó listo el primer bloque visible de Sprint 2 para validación en dispositivo:
+
+- `services/statsService.ts` y `services/remindersService.ts`
+- `hooks/useStats.ts`, `hooks/useWeeklyReport.ts`, `hooks/useReminders.ts`
+- `app/settings/stats.tsx` para ver estadísticas, reporte semanal y recordatorios
+- botón de acceso desde `app/(tabs)/profile.tsx`
+
+Si el backend mantiene los contratos actuales, el front ya puede probarse sin cambios adicionales.
+
+### Endpoints disponibles y contratos esperados
+
+- `GET /health`
+- `GET /health/firebase`
+- `POST /auth/firebase` con `{ "idToken": "..." }`
+- `GET /users/{userId}/stats`
+- `GET /users/{userId}/weekly-report`
+- `GET /users/{userId}/reminders/due`
+- `GET /users/{userId}/reminders/run`
+
+El contrato de recordatorios usa una lista de objetos con campos como `id`, `taskId`, `type`, `dueAt`, `sentAt` y `status`.
+
+### Recordatorios y alarmas
+
+El front ya consume recordatorios y puede refrescar la lista, pero la alarma real como notificación visible o saltable sigue dependiendo de la estrategia del backend o de una capa adicional de notificaciones locales/push.
+
+### Estructura mínima para ejecutar y probar
+
+```bash
+# Instalar dependencias
+npm install
+
+# Levantar el bundle para dev client
+npm run dev-client
+
+# O usar túnel si la red local da problemas
+npx expo start --dev-client --tunnel
+
+# Crear una nueva build de desarrollo Android
+npm run build:android:dev
+```
+
+---
+
+## Arquitectura de Datos
+
+### Frontend → Backend → Firestore
+
+```text
+📱 Frontend (React Native + Expo)
+   ↓ fetch() / API calls
+🖥️  Backend (Ktor)
+   ↓ CRUD / queries
+🗄️  Firestore (Google Cloud)
+```
+
+- **Frontend** (`app/`, `services/`) comunica con backend a través de REST API en `EXPO_PUBLIC_API_URL`.
+- **Backend** (repositorio separado) maneja lógica de negocio, cache, deduplicación y conexión a Firestore.
+- **Firestore** almacena tareas, etiquetas y datos de usuario con estructura jerárquica.
+
+### Caché y Optimizaciones Frontend
+
+- **Cache TTL**: 30 segundos en cliente para reducir llamadas innecesarias.
+- **Deduplicación**: `isFetchingRef` en hooks evita solicitudes paralelas duplicadas.
+- **Retry con backoff**: 2s, 5s, 10s (máx 3 intentos) en caso de errores transientes (429, etc).
+- **Refetch solo en CRUD**: No hay refetch automático en navegación; solo después de create/edit/delete.
 
 ---
 
@@ -192,30 +293,31 @@ Presiona `a` para abrir en Android o `i` para iOS.
 
 ---
 
-## 🔐 Configuración de Firebase
+## 🔐 Configuración
 
-Crea o edita el archivo `config/firebase.ts`:
+### Firebase Auth
 
-```ts
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+El archivo `config/firebase.ts` contiene las credenciales para **autenticación solamente** (login/registro). Obtén los valores en [console.firebase.google.com](https://console.firebase.google.com) → Project Settings → Your apps.
 
-const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "TU_PROJECT.firebaseapp.com",
-  projectId: "TU_PROJECT_ID",
-  storageBucket: "TU_PROJECT.appspot.com",
-  messagingSenderId: "TU_SENDER_ID",
-  appId: "TU_APP_ID",
-};
+Para Google Sign-In real, la app usa también `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` como client ID de OAuth.
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+Curiosamente, **las tareas ya no vienen de Firestore directo**, sino del backend REST. Esto fue un cambio arquitectónico para mejorar control y observabilidad.
+
+### Backend API URL
+
+Crea o edita `.env.local` en la raíz:
+
+```bash
+EXPO_PUBLIC_API_URL=http://<BACKEND_HOST>:8080
 ```
 
-Obtén estos valores en [console.firebase.google.com](https://console.firebase.google.com) → Project Settings → Your apps.
+Ejemplo para desarrollo local:
+
+```bash
+EXPO_PUBLIC_API_URL=http://10.0.2.2:8080
+```
+
+Reinicia el bundler para que cargue: `npx expo start --clear`
 
 ---
 
@@ -234,11 +336,72 @@ Obtén estos valores en [console.firebase.google.com](https://console.firebase.g
 - [x] Modo oscuro completo
 - [x] Perfil de usuario con estadísticas
 - [x] Arquitectura MVC
-- [ ] Google Sign In nativo (build nativo)
+- [x] Google Sign In real conectado con Firebase y backend
 - [ ] Notificaciones push
+- [ ] Integración de recordatorios locales por tarea
+- [ ] Dashboard visual de estadísticas ampliado
 - [ ] Subtareas
 - [ ] Widget de pantalla de inicio
 - [ ] Publicación en Play Store
+
+---
+
+## ⚡ Optimizaciones: Request Deduplication & Firestore Quota
+
+### Problema Inicial
+Cuando el usuario navegaba rápidamente entre pantallas (Home → Profile → Tasks), cada tab disparaba un refetch automático en `useFocusEffect`, causando múltiples llamadas simultáneas a la API. Con 4 áreas por request, esto agotaba la cuota diaria de Firestore.
+
+### Solución Implementada
+
+**1. Auto-refetch en focus DESACTIVADO**
+```typescript
+// ❌ BEFORE - Causaba 429 quota exceeded
+useFocusEffect(
+  useCallback(() => {
+    fetchTasks();  // ← Ejecutaba en CADA tab focus
+  }, [fetchTasks]),
+);
+
+// ✅ AFTER - Solo refetch en acciones explícitas
+// Tasks refetch SOLO después de:
+// - Crear tarea
+// - Editar tarea
+// - Marcar como completada/pendiente
+// - Eliminar tarea
+```
+
+**2. Request Deduplication en hooks** (`hooks/useTasks.ts`)
+```typescript
+const isFetchingRef = useRef(false);
+
+const fetchTasks = async () => {
+  if (isFetchingRef.current) {
+    console.log("⏭️ Fetch already in progress, skipping");
+    return;  // ← Ignora duplicados
+  }
+  isFetchingRef.current = true;
+  try {
+    // ... fetch
+  } finally {
+    isFetchingRef.current = false;
+  }
+}
+```
+
+### Impacto
+- ✅ ~90% reducción de requests innecesarios
+- ✅ Firestore quota no se agota durante navegación normal
+- ✅ Sincronización aún funciona (refetch después de CRUD)
+- ✅ Mejor performance y menos batería
+
+### Monitoreo
+Logs de deduplicación:
+```
+LOG  ⏭️ Fetch already in progress for education, skipping duplicate
+LOG  ⏭️ Fetch all tasks already in progress, skipping duplicate request
+```
+
+Para más detalles técnicos sobre el problema y solución en backend, revisa el historial del proyecto o el código de `hooks/useTasks.ts`.
 
 ---
 

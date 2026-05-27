@@ -1,26 +1,44 @@
+import { ErrorAlert, useErrorAlert } from "@/components/ErrorAlert";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useGoogleAuth } from "@/hooks/useGoogleAuth";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  View,
+    ActivityIndicator,
+    Image,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function WelcomeScreen() {
   const { theme } = useTheme();
   const { isLoading } = useAuth();
-  const { signInWithGoogle, isReady } = useGoogleAuth();
+  const { signInWithGoogle, isReady, loading: googleLoading } = useGoogleAuth();
+  const errorAlert = useErrorAlert();
   const s = makeStyles(theme);
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
+      errorAlert.show(error);
+    }
+  };
 
   return (
     <SafeAreaView style={s.container}>
+      <ErrorAlert
+        visible={errorAlert.visible}
+        error={errorAlert.error}
+        onDismiss={errorAlert.hide}
+        onRetry={handleGoogleSignIn}
+        autoHideDuration={0}
+      />
+
       {/* Logo */}
       <View style={s.logoRow}>
         <Image
@@ -59,18 +77,26 @@ export default function WelcomeScreen() {
 
         <Pressable
           style={({ pressed }) => [s.btn, s.btnGoogle, pressed && s.pressed]}
-          onPress={signInWithGoogle}
-          disabled={!isReady || isLoading}
+          onPress={handleGoogleSignIn}
+          disabled={!isReady || isLoading || googleLoading}
         >
-          {isLoading ? (
+          {isLoading || googleLoading ? (
             <ActivityIndicator color="#fff" size="small" />
           ) : (
             <>
               <Ionicons name="logo-google" size={20} color="#fff" />
-              <Text style={s.btnText}>Continuar con Google</Text>
+              <Text style={s.btnText}>
+                {isReady ? "Continuar con Google" : "Google requiere dev client"}
+              </Text>
             </>
           )}
         </Pressable>
+
+        {!isReady && (
+          <Text style={s.googleHint}>
+            Expo Go no puede abrir el selector nativo. Usa un dev client o un build APK/AAB.
+          </Text>
+        )}
       </View>
 
       {/* Login */}
@@ -172,6 +198,13 @@ const makeStyles = (t: ReturnType<typeof useTheme>["theme"]) =>
       color: "#fff",
       fontSize: 16,
       fontWeight: "700",
+    },
+    googleHint: {
+      fontSize: 12,
+      lineHeight: 16,
+      color: t.textSecond,
+      textAlign: "center",
+      marginTop: 2,
     },
     loginRow: {
       fontSize: 14,

@@ -1,47 +1,51 @@
 import { useAuth } from "@/context/AuthContext";
-import {
-    addLabel,
-    getLabelsByIds,
-    removeLabel,
-    subscribeToLabels,
-} from "@/controllers/LabelController";
-import { Label } from "@/models/Label";
-import { useEffect, useState } from "react";
+import { obtenerEtiquetas } from "@/services/labelService";
+import { useEffect, useMemo, useState } from "react";
 
-export function useLabels() {
-  const { user } = useAuth();
-  const [labels, setLabels] = useState<Label[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+export function useLabels(userId?: string) {
+  const auth = useAuth();
+  const finalUserId = userId || auth?.user?.id;
+  
+  const [labels, setLabels] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (!user) return;
-    return subscribeToLabels(user.id, setLabels);
-  }, [user]);
-
-  const create = async (name: string, color: string): Promise<void> => {
-    if (!user) return;
-    setIsLoading(true);
+  const fetchLabels = async () => {
+    if (!finalUserId) {
+      setLoading(false);
+      return;
+    }
     try {
-      await addLabel(user.id, name, color);
+      setLoading(true);
+      const data = await obtenerEtiquetas(finalUserId);
+      setLabels(data || []);
+      setError(null);
+    } catch (err) {
+      setError(err.message || "Error al cargar etiquetas");
+      setLabels([]);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const remove = async (labelId: string): Promise<void> => {
-    if (!user) return;
-    await removeLabel(user.id, labelId);
-  };
+  useEffect(() => {
+    fetchLabels();
+  }, [finalUserId]);
 
-  const getByIds = (labelIds: string[]): Label[] => {
-    return getLabelsByIds(labels, labelIds);
-  };
+  const getByIds = useMemo(() => {
+    return (labelIds: string[] | undefined) => {
+      if (!labelIds || !Array.isArray(labelIds)) {
+        return [];
+      }
+      return labelIds
+        .map((id) => labels.find((l) => l.id === id))
+        .filter((l) => l !== undefined) as Array<{
+        id: string;
+        name: string;
+        color: string;
+      }>;
+    };
+  }, [labels]);
 
-  return {
-    labels,
-    isLoading,
-    create,
-    remove,
-    getByIds,
-  };
+  return { labels, loading, error, getByIds };
 }

@@ -1,6 +1,18 @@
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { ensureReminderNotificationChannel } from "@/services/notificationsService";
+import { loadApiUrlOverride } from "@/services/runtimeConfig";
+import * as Notifications from "expo-notifications";
 import { Stack } from "expo-router";
+import { useEffect } from "react";
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 // ─── TEST TEMPORAL DE CONEXIÓN ─────────────────────────────
 // Intenta leer un documento de Firestore al arrancar la app.
@@ -23,6 +35,13 @@ import { Stack } from "expo-router";
 // para que cualquier pantalla pueda acceder a la sesión
 
 export default function RootLayout() {
+  useEffect(() => {
+    // Ensure runtime API override is loaded early
+    loadApiUrlOverride().catch(() => {});
+    ensureReminderNotificationChannel().catch((err) => {
+      console.warn("⚠️ No se pudo configurar el canal de notificaciones:", err?.message || err);
+    });
+  }, []);
   return (
     <ThemeProvider>
       <AuthProvider>
@@ -30,7 +49,6 @@ export default function RootLayout() {
           <Stack.Screen name="index" />
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="area" />
           <Stack.Screen name="settings" />
         </Stack>
       </AuthProvider>

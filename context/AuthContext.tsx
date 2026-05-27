@@ -2,11 +2,10 @@ import {
   loginWithEmail,
   logoutUser,
   mapFirebaseUser,
-  mapGoogleUser,
   registerWithEmailAndName,
   subscribeToAuthState,
 } from "@/controllers/AuthController";
-import { GoogleUserInfo, User } from "@/models/User";
+import { User } from "@/models/User";
 import { router } from "expo-router";
 import {
   createContext,
@@ -26,7 +25,7 @@ type AuthContextType = {
     password: string,
     confirmPassword: string,
   ) => Promise<void>;
-  loginWithGoogle: (googleUser: GoogleUserInfo) => Promise<void>;
+  loginWithGoogle: (googleUser: Exclude<User, null>) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -77,10 +76,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const loginWithGoogle = async (googleUser: GoogleUserInfo): Promise<void> => {
+  const loginWithGoogle = async (
+    googleUser: Exclude<User, null>,
+  ): Promise<void> => {
     setIsLoading(true);
     try {
-      setUser(mapGoogleUser(googleUser));
+      setUser(googleUser);
       router.replace("/(tabs)");
     } finally {
       setIsLoading(false);

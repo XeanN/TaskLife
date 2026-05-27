@@ -7,13 +7,14 @@
     "icon": "./assets/images/icon.png",
     "scheme": "miapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tuempresa.tasklife"
+      "bundleIdentifier": "com.tasklife.app"
     },
     "android": {
-      "package": "com.tuempresa.tasklife",
+      "package": "com.tasklife.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -48,6 +49,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "7e6912df-cb6c-4cb5-aa87-76d4e0fa5640"
+      }
     }
   }
 }

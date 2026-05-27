@@ -1,9 +1,10 @@
 import { useTheme } from "@/context/ThemeContext";
+import { sendTestReminderNotification } from "@/services/notificationsService";
 import {
-  DEFAULT_NOTIF_PREFS,
-  getNotifPreferences,
-  NotifPrefs,
-  saveNotifPreferences,
+    DEFAULT_NOTIF_PREFS,
+    getNotifPreferences,
+    NotifPrefs,
+    saveNotifPreferences,
 } from "@/services/storageService";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -42,6 +43,7 @@ export default function NotificationsScreen() {
   const s = makeStyles(theme);
 
   const [prefs, setPrefs] = useState<NotifPrefs>(DEFAULT_NOTIF_PREFS);
+  const [sendingTest, setSendingTest] = useState(false);
 
   useEffect(() => {
     getNotifPreferences().then(setPrefs);
@@ -51,6 +53,15 @@ export default function NotificationsScreen() {
     const next = { ...prefs, [id]: !prefs[id] };
     setPrefs(next);
     await saveNotifPreferences(next);
+  };
+
+  const sendTest = async () => {
+    setSendingTest(true);
+    try {
+      await sendTestReminderNotification();
+    } finally {
+      setSendingTest(false);
+    }
   };
 
   return (
@@ -121,10 +132,21 @@ export default function NotificationsScreen() {
             color={theme.textSecond}
           />
           <Text style={[s.noteText, { color: theme.textSecond }]}>
-            Las notificaciones push requieren permisos del sistema. Puedes
-            activarlas desde Configuración de tu teléfono.
+            Las notificaciones locales usan el sonido por defecto del sistema.
+            Si luego quieres un ringtone propio, se puede agregar como asset y
+            reconstruir la app.
           </Text>
         </View>
+
+        <Pressable
+          style={[s.testButton, { backgroundColor: theme.primary }]}
+          onPress={sendTest}
+          disabled={sendingTest}
+        >
+          <Text style={s.testButtonText}>
+            {sendingTest ? "Enviando..." : "Probar alarma con sonido"}
+          </Text>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -175,4 +197,16 @@ const makeStyles = (t: ReturnType<typeof useTheme>["theme"]) =>
       padding: 14,
     },
     noteText: { flex: 1, fontSize: 12, lineHeight: 18 },
+    testButton: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 14,
+      borderRadius: 14,
+      marginTop: 4,
+    },
+    testButtonText: {
+      color: "#fff",
+      fontWeight: "800",
+      fontSize: 14,
+    },
   });

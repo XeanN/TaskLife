@@ -1,3 +1,4 @@
+import { ErrorAlert, useErrorAlert } from "@/components/ErrorAlert";
 import LabelSheet from "@/components/LabelSheet";
 import TaskFormSheet from "@/components/TaskFormSheet";
 import { useTheme } from "@/context/ThemeContext";
@@ -11,16 +12,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
-  Alert,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
 } from "react-native";
 import {
-  SafeAreaView,
-  useSafeAreaInsets,
+    SafeAreaView,
+    useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
 // ── TaskRow ───────────────────────────────────────────────
@@ -42,8 +44,9 @@ function TaskRow({
   theme: any;
   labelNames: { id: string; name: string; color: string }[];
 }) {
-  const p = PRIORITIES.find((x) => x.value === task.priority)!;
-  const overdue = task.dueDate && !task.done && task.dueDate < new Date();
+  const priority = (task.priority as any) || "baja";
+  const p = PRIORITIES.find((x) => x.value === priority) || PRIORITIES[2];
+  const overdue = task.dueDate && !task.done && new Date(task.dueDate) < new Date();
 
   return (
     <Pressable
@@ -109,7 +112,7 @@ function TaskRow({
                   { color: overdue ? theme.danger : theme.textSecond },
                 ]}
               >
-                {task.dueDate.toLocaleDateString("es-ES", {
+                {new Date(task.dueDate).toLocaleDateString("es-ES", {
                   day: "numeric",
                   month: "short",
                 })}
@@ -201,6 +204,7 @@ export default function AreaTasksScreen() {
   const color = decodeURIComponent(colorParam ?? "#4A7FA5");
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const errorAlert = useErrorAlert();
   const { labels, getByIds } = useLabels();
 
   const [filter, setFilter] = useState<FilterType>("Todas");
@@ -212,8 +216,17 @@ export default function AreaTasksScreen() {
   const [editing, setEditing] = useState<Task | undefined>();
   const [showCompleted, setShowCompleted] = useState(false);
 
-  const { displayed, pending, completed, stats, save, toggle, remove } =
-    useAreaTasks(areaId, filter, sort, labelFilter);
+  const {
+    displayed,
+    pending,
+    completed,
+    stats,
+    save,
+    toggle,
+    remove,
+    loading,
+    error,
+  } = useAreaTasks(areaId, filter, sort, labelFilter);
 
   const s = makeStyles(theme, color);
 
@@ -235,7 +248,7 @@ export default function AreaTasksScreen() {
       setFormOpen(false);
       setEditing(undefined);
     } catch (e: any) {
-      Alert.alert("Error", e.message);
+      errorAlert.show(e);
     }
   };
 
@@ -272,7 +285,19 @@ export default function AreaTasksScreen() {
   ];
 
   return (
-    <SafeAreaView style={s.safe}>
+    <>
+      <ErrorAlert
+        visible={errorAlert.visible}
+        error={errorAlert.error}
+        onDismiss={errorAlert.hide}
+        onRetry={() => {
+          errorAlert.hide();
+          setFormOpen(true);
+        }}
+        autoHideDuration={0}
+      />
+
+      <SafeAreaView style={s.safe}>
       {/* ── Header coloreado ── */}
       <View style={s.header}>
         <Pressable onPress={() => navigateArea("prev")} style={s.navBtn}>
@@ -402,7 +427,22 @@ export default function AreaTasksScreen() {
           />
         )}
         ListEmptyComponent={
-          pendingTasks.length === 0 ? (
+          loading ? (
+            <View style={s.empty}>
+              <ActivityIndicator color={theme.primary} />
+              <Text style={s.emptyText}>Cargando tareas...</Text>
+            </View>
+          ) : error ? (
+            <View style={s.empty}>
+              <Ionicons
+                name="cloud-offline-outline"
+                size={56}
+                color={theme.border}
+              />
+              <Text style={s.emptyText}>No se pudieron cargar</Text>
+              <Text style={s.emptyHint}>Revisa tu conexión y vuelve a intentar</Text>
+            </View>
+          ) : pendingTasks.length === 0 ? (
             <View style={s.empty}>
               <Ionicons
                 name="checkmark-done-circle-outline"
@@ -517,6 +557,7 @@ export default function AreaTasksScreen() {
         onToggle={(id) => setLabelFilter(labelFilter === id ? null : id)}
       />
     </SafeAreaView>
+    </>
   );
 }
 

@@ -6,7 +6,14 @@ import { AREAS } from "@/models/Area";
 import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { router } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+    ActivityIndicator,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
+} from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 function AreaIcon({
@@ -32,8 +39,12 @@ export default function HomeScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
-  const { allTasks, todayTasks, totalPending } = useAllTasks();
+  const { allTasks, todayTasks, totalPending, loading, error } =
+    useAllTasks();
   const s = makeStyles(theme, insets.bottom, tabBarHeight);
+
+  // NOTE: Disabled auto-refetch on focus to prevent Firestore quota exhaustion
+  // Tasks only refetch after CRUD operations (create, edit, delete)
 
   const firstName = user?.name?.split(" ")[0] ?? "Usuario";
 
@@ -54,6 +65,7 @@ export default function HomeScreen() {
       <ScrollView
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
+        scrollEnabled={false}
       >
         {/* ── Header ── */}
         <View style={s.header}>
@@ -75,6 +87,21 @@ export default function HomeScreen() {
           <Text style={s.heroTitle}>Tu vida</Text>
           <Text style={s.heroSubtitle}>Organiza tus tareas por área</Text>
         </View>
+
+        {loading && (
+          <View style={s.statusCard}>
+            <ActivityIndicator color={theme.primary} />
+            <Text style={s.statusText}>Cargando tus tareas...</Text>
+          </View>
+        )}
+
+        {!loading && error && (
+          <View style={s.statusCard}>
+            <Text style={[s.statusText, { color: theme.danger }]}>
+              Error al cargar tareas. Intenta recargar la app.
+            </Text>
+          </View>
+        )}
 
         {/* ── Mi día ── */}
         <Pressable
@@ -144,7 +171,7 @@ const makeStyles = (
       paddingHorizontal: 20,
       paddingTop: 8,
       // Evita que el CTA inferior quede detrás del tab bar o botones del sistema.
-      paddingBottom: Math.max(96, bottomInset + tabBarHeight + 44),
+      paddingBottom: bottomInset + tabBarHeight + 16,
     },
 
     header: {
@@ -182,6 +209,32 @@ const makeStyles = (
       fontSize: 15,
       color: t.textSecond,
     },
+
+    statusCard: {
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 10,
+      backgroundColor: t.card,
+      borderRadius: 16,
+      paddingVertical: 18,
+      paddingHorizontal: 16,
+      marginBottom: 18,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    statusText: {
+      fontSize: 14,
+      color: t.textSecond,
+      fontWeight: "600",
+      textAlign: "center",
+    },
+    retryBtn: {
+      backgroundColor: t.primary,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 999,
+    },
+    retryText: { color: "#fff", fontWeight: "700", fontSize: 13 },
 
     miDiaBtn: {
       flexDirection: "row",

@@ -1,29 +1,27 @@
-import { AREAS } from "@/models/Area";
 import { NewTask, Task, TaskFormData } from "@/models/Task";
 import {
     createTask,
     deleteTask,
-    subscribeToTasks,
     toggleTask,
-    updateTask,
+    updateTask
 } from "@/services/taskService";
 
-export { subscribeToTasks };
+// ── Tipos exportados ─────────────────────────────────────
 
-// ── Suscripción a todas las áreas ────────────────────────
+export type FilterType = "Todas" | "Pendientes" | "Completadas";
+export type SortKey = "fecha" | "prioridad" | "nombre";
 
-export function subscribeToAllAreas(
-  userId: string,
-  onUpdate: (allTasks: Record<string, Task[]>) => void,
-): () => void {
-  const cache: Record<string, Task[]> = {};
-  const unsubs = AREAS.map((area) =>
-    subscribeToTasks(userId, area.id, (tasks) => {
-      cache[area.id] = tasks;
-      onUpdate({ ...cache });
-    }),
-  );
-  return () => unsubs.forEach((u) => u());
+function normalizePriority(value: unknown): "alta" | "media" | "baja" {
+  if (value === "alta" || value === "media" || value === "baja") {
+    return value;
+  }
+  if (typeof value === "string") {
+    const lower = value.toLowerCase();
+    if (lower === "alta" || lower === "media" || lower === "baja") {
+      return lower;
+    }
+  }
+  return "media";
 }
 
 // ── CRUD ─────────────────────────────────────────────────
@@ -32,6 +30,9 @@ export async function addTask(
   userId: string,
   formData: TaskFormData,
 ): Promise<void> {
+  if (!userId) {
+    throw new Error("Usuario no autenticado");
+  }
   if (!formData.title.trim()) {
     throw new Error("Escribe un nombre para la tarea");
   }
@@ -41,12 +42,13 @@ export async function addTask(
   const newTask: NewTask = {
     title: formData.title.trim(),
     description: formData.description.trim(),
-    priority: formData.priority,
+    priority: normalizePriority(formData.priority),
     dueDate: formData.dueDate,
     labelIds: formData.labelIds,
     done: false,
     areaId: formData.areaId,
   };
+  console.log("Adding task:", newTask);
   await createTask(userId, formData.areaId, newTask);
 }
 
@@ -56,13 +58,17 @@ export async function editTask(
   taskId: string,
   formData: TaskFormData,
 ): Promise<void> {
+  if (!userId) {
+    throw new Error("Usuario no autenticado");
+  }
   if (!formData.title.trim()) {
     throw new Error("Escribe un nombre para la tarea");
   }
+  console.log("Editing task:", taskId, "with data:", formData);
   await updateTask(userId, areaId, taskId, {
     title: formData.title.trim(),
     description: formData.description.trim(),
-    priority: formData.priority,
+    priority: normalizePriority(formData.priority),
     dueDate: formData.dueDate,
     labelIds: formData.labelIds,
   });
@@ -74,6 +80,10 @@ export async function toggleTaskDone(
   taskId: string,
   currentDone: boolean,
 ): Promise<void> {
+  if (!userId) {
+    throw new Error("Usuario no autenticado");
+  }
+  console.log("Toggling task:", taskId, "done:", !currentDone);
   await toggleTask(userId, areaId, taskId, !currentDone);
 }
 
@@ -82,6 +92,10 @@ export async function removeTask(
   areaId: string,
   taskId: string,
 ): Promise<void> {
+  if (!userId) {
+    throw new Error("Usuario no autenticado");
+  }
+  console.log("Removing task:", taskId);
   await deleteTask(userId, areaId, taskId);
 }
 
@@ -130,9 +144,6 @@ export function getAreaStats(tasks: Task[]): {
 }
 
 // ── Filtros y ordenamiento ────────────────────────────────
-
-export type FilterType = "Todas" | "Pendientes" | "Completadas";
-export type SortKey = "fecha" | "prioridad" | "nombre";
 
 const PRIORITY_ORDER: Record<string, number> = {
   alta: 0,
