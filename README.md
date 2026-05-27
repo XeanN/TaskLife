@@ -271,6 +271,7 @@ npx --yes eas-cli build --platform android --profile preview
 
 - Los MD auxiliares de mensajes y prueba de recordatorios fueron retirados para evitar duplicación.
 - El flujo actual de backend y demo se documenta aquí mismo en `README.md`.
+- La arquitectura del frontend para el informe técnico está en [FRONTEND_ARQUITECTURA.md](FRONTEND_ARQUITECTURA.md).
 
 ---
 
@@ -437,12 +438,5 @@ Para más detalles técnicos sobre el problema y solución en backend, revisa el
 
 ---
 
-## 👨‍💻 Autor
 
-**Angel (XeanN)** — Desarrollado como proyecto de aprendizaje de React Native con Expo y arquitectura MVC.
 
----
-
-## 📄 Licencia
-
-MIT License — siéntete libre de usar este proyecto como base para tus propias apps.
