@@ -38,11 +38,23 @@
 - ✅ Nueva vista de prueba: `app/settings/stats.tsx` con acceso desde Perfil.
 - ✅ Hooks con cache y deduplicación: `useStats`, `useWeeklyReport`, `useReminders`.
 - ✅ Google Sign-In real ya quedó conectado; el mock solo queda como fallback temporal.
+- ✅ Recordatorios con notificación local en Android y sonido por defecto.
+- ✅ Botón de prueba de alarma en `app/settings/notifications.tsx`.
 
 ### Google Sign-In real
 
 Para probar Google real necesitas un dev client o un build nativo, no Expo Go.
 El flujo usa `POST /auth/firebase` con `idToken` real y luego sincroniza al usuario con el backend.
+
+### Recordatorios y notificaciones
+
+El frontend ya consulta recordatorios pendientes desde el backend y programa notificaciones locales cuando llegan fechas válidas.
+
+- La pantalla de estadísticas muestra los recordatorios pendientes.
+- La pantalla de notificaciones incluye una acción para probar una alarma local.
+- Android usa sonido por defecto del sistema.
+- Si quieres un ringtone propio, hay que agregar un asset de audio y reconstruir la app.
+- Para push server-side todavía se requiere scheduler del backend y token de dispositivo.
 
 ---
 
@@ -178,9 +190,15 @@ Firebase conectado
 ```
 
 Si recibes `Network request failed` en la app, revisa:
-- que el `EXPO_PUBLIC_API_URL` apunte a la IP correcta (si usas emulador Android puede ser `http://10.0.2.2:8080`).
-- que el backend esté corriendo y accesible desde la red local.
+- que el `EXPO_PUBLIC_API_URL` apunte a la URL correcta.
+- que el backend esté corriendo y accesible desde la red local o desde la URL pública.
 - que no haya políticas de firewall bloqueando el puerto 8080.
+
+Para la demo actual, la base URL pública temporal es:
+
+```bash
+EXPO_PUBLIC_API_URL=https://gmt-brokers-sampling-democrat.trycloudflare.com
+```
 
 Estado actual de la integración en esta rama:
 
@@ -196,6 +214,7 @@ Estado actual de la integración en esta rama:
 - Para teléfono físico en red distinta, el front debe apuntar a una URL pública temporal o a un backend accesible desde Internet.
 - Para desarrollo con dev client, usa `npm run dev-client` o `npx expo start --dev-client --tunnel` si Metro no alcanza por red.
 - La build Android de desarrollo se genera con `npm run build:android:dev`.
+- La build APK de demo se genera con EAS usando el perfil `preview`.
 
 ### Sprint 2 en curso
 
@@ -217,12 +236,15 @@ Si el backend mantiene los contratos actuales, el front ya puede probarse sin ca
 - `GET /users/{userId}/weekly-report`
 - `GET /users/{userId}/reminders/due`
 - `GET /users/{userId}/reminders/run`
+- `POST /users/{userId}/push-token`
 
-El contrato de recordatorios usa una lista de objetos con campos como `id`, `taskId`, `type`, `dueAt`, `sentAt` y `status`.
+El contrato de recordatorios usa una lista de objetos con campos como `id`, `taskId`, `type`, `title`, `body`, `dueAt`, `scheduledAt`, `sentAt` y `status`.
 
 ### Recordatorios y alarmas
 
-El front ya consume recordatorios y puede refrescar la lista, pero la alarma real como notificación visible o saltable sigue dependiendo de la estrategia del backend o de una capa adicional de notificaciones locales/push.
+El front ya consume recordatorios y además programa notificaciones locales cuando recibe fechas válidas.
+
+Si quieres una alarma tipo app real que salte aunque la app no esté abierta, hace falta que el backend programe el disparo y, si corresponde, envíe push o alimente el scheduler local con el contrato correcto.
 
 ### Estructura mínima para ejecutar y probar
 
@@ -238,7 +260,17 @@ npx expo start --dev-client --tunnel
 
 # Crear una nueva build de desarrollo Android
 npm run build:android:dev
+
+# Crear APK de demo con EAS
+npx --yes eas-cli build --platform android --profile preview
 ```
+
+---
+
+## 📦 Documentación consolidada
+
+- Los MD auxiliares de mensajes y prueba de recordatorios fueron retirados para evitar duplicación.
+- El flujo actual de backend y demo se documenta aquí mismo en `README.md`.
 
 ---
 
