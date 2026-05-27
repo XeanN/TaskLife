@@ -30,6 +30,12 @@ const MENU_ITEMS = [
     route: "/settings/backend",
   },
   {
+    id: "create-reminder",
+    icon: "alarm-outline",
+    label: "Crear recordatorio (dev)",
+    route: "/settings/createReminder",
+  },
+  {
     id: "privacy",
     icon: "shield-checkmark-outline",
     label: "Privacidad",

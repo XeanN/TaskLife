@@ -91,3 +91,38 @@ export const ejecutarReminders = async (userId: string) => {
     throw err;
   }
 };
+
+// ──────────────────────────────────────────────────────────
+// POST - Crear un recordatorio (intenta backend, si falla devuelve objeto local)
+// ──────────────────────────────────────────────────────────
+
+export const crearReminder = async (userId: string, reminder: any) => {
+  try {
+    if (!userId) throw new Error("userId es requerido");
+
+    const API_URL = getApiUrl();
+    const url = `${API_URL}/users/${userId}/reminders`;
+    console.log("🔧 Creating reminder on backend:", url, reminder);
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(reminder),
+    });
+
+    const data = await handleResponse(res);
+    return data;
+  } catch (err: any) {
+    console.warn("⚠️ No se pudo crear reminder en backend, fallback local:", err?.message || err);
+    // Fallback: return a local reminder object so the UI can schedule it
+    const now = new Date().toISOString();
+    return {
+      id: reminder.id || `local-${Date.now()}`,
+      title: reminder.title || reminder.type || "Recordatorio TaskLife",
+      body: reminder.body || reminder.message || "Tienes una tarea pendiente.",
+      dueAt: reminder.dueAt || reminder.scheduledAt || now,
+      scheduledAt: reminder.scheduledAt || reminder.dueAt || now,
+      status: reminder.status || "pending",
+    };
+  }
+};
