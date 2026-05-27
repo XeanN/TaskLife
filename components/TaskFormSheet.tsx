@@ -363,6 +363,10 @@ export default function TaskFormSheet({
                   }}
                 />
               )}
+              <Text style={[s.helperText, { color: theme.textThird }]}>
+                Al guardar una fecha, TaskLife programa automáticamente una
+                alarma 1 día antes para esa tarea.
+              </Text>
             </View>
 
             {/* Etiquetas */}
@@ -553,6 +557,11 @@ const makeStyles = (t: ReturnType<typeof useTheme>["theme"]) =>
       fontSize: 14,
       fontWeight: "500",
       flex: 1,
+    },
+    helperText: {
+      fontSize: 12,
+      lineHeight: 17,
+      marginTop: 8,
     },
     clearDate: {
       padding: 4,
