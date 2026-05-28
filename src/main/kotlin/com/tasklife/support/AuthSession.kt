@@ -110,3 +110,12 @@ suspend fun ApplicationCall.requireBearerUser(expectedUserId: String): VerifiedS
     }
     return verified
 }
+
+suspend fun ApplicationCall.requireAuthenticatedUser(): VerifiedSession? {
+    val verified = AuthSession.verifyToken(AuthSession.extractBearerToken(this))
+    if (verified == null) {
+        respondText("No autorizado", status = HttpStatusCode.Unauthorized)
+        return null
+    }
+    return verified
+}

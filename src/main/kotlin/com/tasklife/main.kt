@@ -33,12 +33,16 @@ fun main() {
 
 fun Application.module() {
     install(CORS) {
-        anyHost()
+        allowHost("localhost:8081", schemes = listOf("http"))
+        allowHost("127.0.0.1:8081", schemes = listOf("http"))
         allowMethod(HttpMethod.Get)
         allowMethod(HttpMethod.Post)
+        allowMethod(HttpMethod.Options)
         allowMethod(HttpMethod.Put)
         allowMethod(HttpMethod.Delete)
+        allowHeader(HttpHeaders.Authorization)
         allowHeader(HttpHeaders.ContentType)
+        allowHeader(HttpHeaders.Accept)
     }
 
     routing {

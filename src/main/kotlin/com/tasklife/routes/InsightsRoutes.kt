@@ -3,6 +3,8 @@ package com.tasklife.routes
 import com.tasklife.controllers.InsightsController
 import com.tasklife.controllers.ReminderController
 import com.tasklife.models.ReminderCreateRequest
+import com.tasklife.support.AuthSession
+import com.tasklife.support.requireAuthenticatedUser
 import com.tasklife.support.requireBearerUser
 import com.tasklife.support.Validation
 import io.ktor.http.HttpStatusCode
@@ -82,6 +84,32 @@ fun Application.configureInsightsRoutes() {
                 val fromIso = call.request.queryParameters["from"]
                 val toIso = call.request.queryParameters["to"]
                 call.respond(reminderController.run(userId, fromIso, toIso))
+            }
+        }
+
+        route("/users/me") {
+            get("/stats") {
+                val session = call.requireAuthenticatedUser() ?: return@get
+                call.respond(controller.stats(session.userId))
+            }
+
+            get("/weekly-report") {
+                val session = call.requireAuthenticatedUser() ?: return@get
+                call.respond(controller.weeklyReport(session.userId))
+            }
+
+            get("/reminders/due") {
+                val session = call.requireAuthenticatedUser() ?: return@get
+                val fromIso = call.request.queryParameters["from"]
+                val toIso = call.request.queryParameters["to"]
+                call.respond(reminderController.due(session.userId, fromIso, toIso))
+            }
+
+            get("/reminders/run") {
+                val session = call.requireAuthenticatedUser() ?: return@get
+                val fromIso = call.request.queryParameters["from"]
+                val toIso = call.request.queryParameters["to"]
+                call.respond(reminderController.run(session.userId, fromIso, toIso))
             }
         }
     }
