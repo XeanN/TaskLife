@@ -1,167 +1,267 @@
-// ─── taskService.ts ──────────────────────────────────────
-// Único archivo que habla directamente con Firestore.
-// Todas las pantallas usan estas funciones; ninguna hace
-// llamadas a Firebase por su cuenta.
-import { db } from "@/config/firebase";
-import {
-  addDoc, // crea un documento con ID automático
-  collection, // referencia a una colección
-  deleteDoc, // elimina un documento
-  doc, // referencia a un documento específico por ID
-  getDocs, // lectura única (sin tiempo real)
-  onSnapshot, // escucha cambios en tiempo real
-  orderBy, // ordena los resultados de una consulta
-  query, // construye una consulta con filtros/orden
-  Timestamp, // tipo de fecha de Firestore (≠ Date de JS)
-  updateDoc, // actualiza campos de un documento existente
-} from "firebase/firestore";
 
-// ─── Tipos ────────────────────────────────────────────────
-export type Priority = "alta" | "media" | "baja";
+import { apiFetch } from "./apiClient";
+import { parseApiError } from "./errorHandler";
+import { getApiUrl } from "./runtimeConfig";
 
-export type Label = {
-  id: string;
-  name: string;
-  color: string;
+const handleResponse = async (res) => {
+  const text = await res.text();
+
+  let data = null;
+  let parsedJson = false;
+  try {
+    data = text ? JSON.parse(text) : null;
+    parsedJson = true;
+  } catch (e) {
+    data = text;
+  }
+
+  if (!res.ok) {
+    const error = await parseApiError(res, text);
+    throw error;
+  }
+
+  if (!parsedJson && text) {
+    console.warn("⚠️ Respuesta no JSON recibida en éxito, devolviendo texto plano");
+  }
+
+  return data;
 };
 
-export type Task = {
-  id: string;
-  title: string;
-  description?: string;
-  done: boolean;
-  dueDate?: Date;
-  priority: Priority;
-  labels: string[]; // ids de etiquetas
-  areaId: string;
-  createdAt: Date;
-  updatedAt: Date;
+// ──────────────────────────────────────────────────────────
+// GET - Obtener tareas
+// ──────────────────────────────────────────────────────────
+
+export const obtenerTareas = async (userId, areaId) => {
+  const API_URL = getApiUrl();
+  try {
+    if (!userId) throw new Error("userId es requerido");
+    if (!areaId) throw new Error("areaId es requerido");
+
+    const url = `${API_URL}/users/${userId}/areas/${areaId}/tasks`;
+    console.log("📥 Fetching tasks from:", url);
+
+    // Retry on 429 with backoff: 2s, 5s, 10s (max 3 attempts)
+    const backoffMs = [2000, 5000, 10000];
+    let attempt = 0;
+    while (true) {
+      try {
+        const res = await apiFetch(url, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        const data = await handleResponse(res);
+        console.log("✅ Tasks fetched:", data?.length || 0, "tareas");
+        return data || [];
+      } catch (err: any) {
+        // If quota exceeded, retry with backoff up to max retries
+        const isQuota = err?.message && err.message.toLowerCase().includes("quota");
+        attempt += 1;
+        if (isQuota && attempt <= backoffMs.length) {
+          const wait = backoffMs[attempt - 1];
+          console.warn(`⚠️ 429 received, retrying in ${wait}ms (attempt ${attempt})`);
+          await new Promise((r) => setTimeout(r, wait));
+          continue; // retry
+        }
+        // rethrow for other errors or if out of retries
+        throw err;
+      }
+    }
+  } catch (err: any) {
+    console.error("❌ Error fetching tasks:", err.message);
+    if (err.message.includes("Network") || err.message.includes("Failed")) {
+      console.error("⚠️ No hay conexión al backend. Verifica que:");
+      console.error("   1. El backend está corriendo en", API_URL);
+      console.error("   2. La URL es correcta (revisa .env.example)");
+    }
+    throw err;
+  }
 };
 
-export type NewTask = Omit<Task, "id" | "createdAt" | "updatedAt">;
+// Alias en inglés para compatibilidad con controladores
+export const getTasks = obtenerTareas;
 
-// ─── Rutas Firestore ──────────────────────────────────────
-// Estructura en la base de datos:
-//   users/{userId}/areas/{areaId}/tasks/{taskId}
-//   users/{userId}/labels/{labelId}
-// Cada usuario tiene sus propios datos aislados por su uid.
+// ──────────────────────────────────────────────────────────
+// POST - Crear tarea
+// ──────────────────────────────────────────────────────────
 
-// Referencia a la subcolección de tareas de un área
-const tasksRef = (userId: string, areaId: string) =>
-  collection(db, "users", userId, "areas", areaId, "tasks");
+export const crearTarea = async (userId, areaId, tarea) => {
+  const API_URL = getApiUrl();
+  try {
+    if (!userId) throw new Error("userId es requerido");
+    if (!areaId) throw new Error("areaId es requerido");
 
-// Referencia a las etiquetas personalizadas del usuario
-const labelsRef = (userId: string) => collection(db, "users", userId, "labels");
-
-// ─── TAREAS ───────────────────────────────────────────────
-
-// Escucha tareas en tiempo real con onSnapshot:
-// cada vez que cambia un dato en Firestore, la UI se actualiza
-// sin necesidad de recargar manualmente.
-export function subscribeToTasks(
-  userId: string,
-  areaId: string,
-  callback: (tasks: Task[]) => void,
-) {
-  const q = query(tasksRef(userId, areaId), orderBy("createdAt", "desc"));
-  return onSnapshot(q, (snap) => {
-    const tasks: Task[] = snap.docs.map((d) => {
-      const data = d.data();
-      return {
-        id: d.id,
-        title: data.title,
-        description: data.description ?? "",
-        done: data.done ?? false,
-        dueDate: data.dueDate
-          ? (data.dueDate as Timestamp).toDate()
-          : undefined,
-        priority: data.priority ?? "media",
-        labels: data.labels ?? [],
-        areaId,
-        createdAt: (data.createdAt as Timestamp).toDate(),
-        updatedAt: (data.updatedAt as Timestamp).toDate(),
-      };
+    const url = `${API_URL}/users/${userId}/areas/${areaId}/tasks`;
+    console.log("📤 Creating task at:", url, "with data:", tarea);
+    
+    const res = await apiFetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(tarea),
     });
-    callback(tasks);
-  });
-}
+    
+    const data = await handleResponse(res);
+    console.log("✅ Task created:", data);
+    return data;
+  } catch (err: any) {
+    console.error("❌ Error creating task:", err.message);
+    if (err.message.includes("Network") || err.message.includes("Failed")) {
+      console.error("⚠️ No hay conexión al backend en", API_URL);
+    }
+    throw err;
+  }
+};
 
-// Crea una tarea nueva en Firestore.
-// addDoc genera el ID automáticamente; los timestamps
-// se convierten al formato Timestamp de Firestore.
-export async function createTask(
-  userId: string,
-  areaId: string,
-  task: NewTask,
-) {
-  const now = Timestamp.now();
-  await addDoc(tasksRef(userId, areaId), {
-    ...task,
-    dueDate: task.dueDate ? Timestamp.fromDate(task.dueDate) : null,
-    createdAt: now,
-    updatedAt: now,
-  });
-}
+// Alias en inglés para compatibilidad con controladores
+export const createTask = crearTarea;
 
-// Actualiza solo los campos enviados (Partial), sin reescribir
-// todo el documento. Siempre actualiza updatedAt.
-export async function updateTask(
-  userId: string,
-  areaId: string,
-  taskId: string,
-  changes: Partial<Omit<Task, "id" | "createdAt">>,
-) {
-  const ref = doc(db, "users", userId, "areas", areaId, "tasks", taskId);
-  await updateDoc(ref, {
-    ...changes,
-    dueDate: changes.dueDate ? Timestamp.fromDate(changes.dueDate) : null,
-    updatedAt: Timestamp.now(),
-  });
-}
+// ──────────────────────────────────────────────────────────
+// PUT - Actualizar tarea
+// ──────────────────────────────────────────────────────────
 
-// Elimina el documento de la tarea permanentemente.
-export async function deleteTask(
-  userId: string,
-  areaId: string,
-  taskId: string,
-) {
-  const ref = doc(db, "users", userId, "areas", areaId, "tasks", taskId);
-  await deleteDoc(ref);
-}
+export const actualizarTarea = async (userId, areaId, taskId, cambios) => {
+  try {
+    if (!userId) throw new Error("userId es requerido");
+    if (!areaId) throw new Error("areaId es requerido");
+    if (!taskId) throw new Error("taskId es requerido");
+    
+    const API_URL = getApiUrl();
+    const url = `${API_URL}/users/${userId}/areas/${areaId}/tasks/${taskId}`;
+    console.log("📝 Updating task at:", url, "with data:", cambios);
+    
+    const res = await apiFetch(url, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(cambios),
+    });
+    
+    const text = await res.text();
+    let data = null;
+    let parsedJson = false;
+    try {
+      data = text ? JSON.parse(text) : null;
+      parsedJson = true;
+    } catch (e) {
+      data = text;
+    }
 
-// Cambia solo el campo 'done' de la tarea (true/false).
-export async function toggleTask(
-  userId: string,
-  areaId: string,
-  taskId: string,
-  done: boolean,
-) {
-  const ref = doc(db, "users", userId, "areas", areaId, "tasks", taskId);
-  await updateDoc(ref, { done, updatedAt: Timestamp.now() });
-}
+    if (!res.ok) {
+      console.error("❌ UPDATE TASK ERROR:");
+      console.error("   Status:", res.status);
+      console.error("   URL:", url);
+      console.error("   Payload:", cambios);
+      console.error("   Response:", data || text);
+      throw new Error(
+        typeof data === "string" ? data : data?.message || text || `Error HTTP ${res.status}`,
+      );
+    }
+    
+    if (!parsedJson && text) {
+      console.warn("⚠️ Respuesta no JSON recibida en éxito, devolviendo texto plano");
+    }
 
-// ─── ETIQUETAS ────────────────────────────────────────────
-// Las etiquetas son colores/nombres que el usuario puede
-// asignar a sus tareas. Se leen una sola vez (getDocs),
-// no necesitan tiempo real.
+    console.log("✅ Task updated:", data);
+    return data;
+  } catch (err: any) {
+    console.error("❌ Error updating task:", err.message);
+    throw err;
+  }
+};
 
-export async function getLabels(userId: string): Promise<Label[]> {
-  const snap = await getDocs(labelsRef(userId));
-  return snap.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as Omit<Label, "id">),
-  }));
-}
+// Alias en inglés para compatibilidad con controladores
+export const updateTask = actualizarTarea;
 
-export async function createLabel(
-  userId: string,
-  label: Omit<Label, "id">,
-): Promise<string> {
-  const ref = await addDoc(labelsRef(userId), label);
-  return ref.id;
-}
+// ──────────────────────────────────────────────────────────
+// PATCH - Toggle tarea (marcar como done/pending)
+// ──────────────────────────────────────────────────────────
 
-export async function deleteLabel(userId: string, labelId: string) {
-  const ref = doc(db, "users", userId, "labels", labelId);
-  await deleteDoc(ref);
-}
+export const toggleTask = async (userId, areaId, taskId, done) => {
+  try {
+    if (!userId) throw new Error("userId es requerido");
+    if (!areaId) throw new Error("areaId es requerido");
+    if (!taskId) throw new Error("taskId es requerido");
+    
+    const API_URL = getApiUrl();
+    const url = `${API_URL}/users/${userId}/areas/${areaId}/tasks/${taskId}`;
+    const payload = { done };
+    console.log("🔄 Toggling task at:", url, "payload:", payload);
+    
+    const res = await apiFetch(url, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    
+    const text = await res.text();
+    let data = null;
+    let parsedJson = false;
+    try {
+      data = text ? JSON.parse(text) : null;
+      parsedJson = true;
+    } catch (e) {
+      data = text;
+    }
+
+    if (!res.ok) {
+      console.error("❌ TOGGLE TASK ERROR:");
+      console.error("   Status:", res.status);
+      console.error("   URL:", url);
+      console.error("   Payload:", payload);
+      console.error("   Response:", data || text);
+      throw new Error(
+        typeof data === "string" ? data : data?.message || text || `Error HTTP ${res.status}`,
+      );
+    }
+    
+    if (!parsedJson && text) {
+      console.warn("⚠️ Respuesta no JSON recibida en éxito, devolviendo texto plano");
+    }
+
+    console.log("✅ Task toggled:", data);
+    return data;
+  } catch (err: any) {
+    console.error("❌ Error toggling task:", err.message);
+    throw err;
+  }
+};
+
+// ──────────────────────────────────────────────────────────
+// DELETE - Eliminar tarea
+// ──────────────────────────────────────────────────────────
+
+export const eliminarTarea = async (userId, areaId, taskId) => {
+  const API_URL = getApiUrl();
+  try {
+    if (!userId) throw new Error("userId es requerido");
+    if (!areaId) throw new Error("areaId es requerido");
+    if (!taskId) throw new Error("taskId es requerido");
+
+    const url = `${API_URL}/users/${userId}/areas/${areaId}/tasks/${taskId}`;
+    console.log("🗑️  Deleting task at:", url);
+    
+    const res = await apiFetch(url, {
+      method: "DELETE",
+    });
+    
+    if (!res.ok) {
+      throw new Error("No se pudo eliminar la tarea");
+    }
+    
+    console.log("✅ Task deleted");
+    return true;
+  } catch (err: any) {
+    console.error("❌ Error deleting task:", err.message);
+    throw err;
+  }
+};
+
+// Alias en inglés para compatibilidad con controladores
+export const deleteTask = eliminarTarea;

@@ -1,10 +1,11 @@
+import { ErrorAlert, useErrorAlert } from "@/components/ErrorAlert";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
     ActivityIndicator,
-    Alert,
     KeyboardAvoidingView,
     Platform,
     Pressable,
@@ -18,80 +19,56 @@ import {
 
 export default function RegisterScreen() {
   const { register, isLoading } = useAuth();
-  const [name, setName] = useState("");
+  const { theme } = useTheme();
+  const s = makeStyles(theme);
+  const errorAlert = useErrorAlert();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
 
   const handleRegister = async () => {
-    if (!name || !email || !password || !confirmPassword) {
-      Alert.alert("Campos requeridos", "Por favor completa todos los campos");
-      return;
-    }
-    if (password !== confirmPassword) {
-      Alert.alert("Error", "Las contraseñas no coinciden");
-      return;
-    }
-    if (password.length < 6) {
-      Alert.alert("Error", "La contraseña debe tener al menos 6 caracteres");
-      return;
-    }
     try {
-      await register(name, email, password);
+      await register("Usuario", email, password, confirmPassword);
     } catch (error: any) {
-      Alert.alert("Error", error.message);
+      errorAlert.show(error);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={s.container}>
+      <ErrorAlert
+        visible={errorAlert.visible}
+        error={errorAlert.error}
+        onDismiss={errorAlert.hide}
+        onRetry={handleRegister}
+        autoHideDuration={0}
+      />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerStyle={styles.inner}
+          contentContainerStyle={s.inner}
           keyboardShouldPersistTaps="handled"
         >
           {/* Header */}
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color={C.text} />
+          <Pressable style={s.backBtn} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color={theme.text} />
           </Pressable>
 
-          <Text style={styles.title}>Crear cuenta</Text>
-          <Text style={styles.subtitle}>Empieza a organizar tu vida hoy</Text>
+          <Text style={s.title}>Registrarme</Text>
+          <Text style={s.subtitle}>Añade tu email y contraseña.</Text>
 
           {/* Campos */}
-          <View style={styles.fields}>
-            <View style={styles.inputWrapper}>
-              <Ionicons
-                name="person-outline"
-                size={20}
-                color={C.gray}
-                style={styles.inputIcon}
-              />
+          <View style={s.fields}>
+            <View style={s.inputWrapper}>
               <TextInput
-                style={styles.input}
-                placeholder="Nombre completo"
-                placeholderTextColor={C.placeholder}
-                autoCapitalize="words"
-                value={name}
-                onChangeText={setName}
-              />
-            </View>
-
-            <View style={styles.inputWrapper}>
-              <Ionicons
-                name="mail-outline"
-                size={20}
-                color={C.gray}
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Correo electrónico"
-                placeholderTextColor={C.placeholder}
+                style={s.input}
+                placeholder="Tu email personal o de trabajo"
+                placeholderTextColor={theme.textThird}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={email}
@@ -99,44 +76,32 @@ export default function RegisterScreen() {
               />
             </View>
 
-            <View style={styles.inputWrapper}>
-              <Ionicons
-                name="lock-closed-outline"
-                size={20}
-                color={C.gray}
-                style={styles.inputIcon}
-              />
+            <View style={s.inputWrapper}>
               <TextInput
-                style={[styles.input, { flex: 1 }]}
-                placeholder="Contraseña"
-                placeholderTextColor={C.placeholder}
+                style={[s.input, { flex: 1 }]}
+                placeholder="Tu contraseña"
+                placeholderTextColor={theme.textThird}
                 secureTextEntry={!showPass}
                 value={password}
                 onChangeText={setPassword}
               />
               <Pressable
                 onPress={() => setShowPass(!showPass)}
-                style={styles.eyeBtn}
+                style={s.eyeBtn}
               >
                 <Ionicons
                   name={showPass ? "eye-off-outline" : "eye-outline"}
                   size={20}
-                  color={C.gray}
+                  color={theme.textSecond}
                 />
               </Pressable>
             </View>
 
-            <View style={styles.inputWrapper}>
-              <Ionicons
-                name="lock-closed-outline"
-                size={20}
-                color={C.gray}
-                style={styles.inputIcon}
-              />
+            <View style={s.inputWrapper}>
               <TextInput
-                style={styles.input}
+                style={s.input}
                 placeholder="Confirmar contraseña"
-                placeholderTextColor={C.placeholder}
+                placeholderTextColor={theme.textThird}
                 secureTextEntry={!showPass}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
@@ -146,77 +111,120 @@ export default function RegisterScreen() {
 
           {/* Botón */}
           <Pressable
-            style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
+            style={({ pressed }) => [s.btn, pressed && s.pressed]}
             onPress={handleRegister}
             disabled={isLoading}
           >
             {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.btnText}>Crear cuenta</Text>
+              <Text style={s.btnText}>Registrarme</Text>
             )}
           </Pressable>
 
           {/* Login */}
           <Pressable onPress={() => router.replace("/(auth)/login")}>
-            <Text style={styles.loginRow}>
+            <Text style={s.loginRow}>
               ¿Ya tienes cuenta?{"  "}
-              <Text style={styles.loginLink}>Inicia sesión</Text>
+              <Text style={s.loginLink}>Inicia sesión</Text>
             </Text>
           </Pressable>
+
+          {/* Términos */}
+          <Text style={s.terms}>
+            Al continuar con estos servicios, aceptas los{" "}
+            <Text style={s.termsLink}>Términos de Servicio</Text> y nuestra{" "}
+            <Text style={s.termsLink}>Política de Privacidad</Text>
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-const C = {
-  bg: "#EAF4FB",
-  primary: "#3F7EA6",
-  text: "#1A1A2E",
-  gray: "#6B7280",
-  placeholder: "#aaa",
-  link: "#3F7EA6",
-  inputBg: "#fff",
-  border: "#D1E9F5",
-};
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
-  inner: { paddingHorizontal: 28, paddingTop: 16, paddingBottom: 40 },
-  backBtn: { marginBottom: 24 },
-  title: { fontSize: 28, fontWeight: "800", color: C.text, marginBottom: 6 },
-  subtitle: { fontSize: 15, color: C.gray, marginBottom: 32 },
-  fields: { gap: 14, marginBottom: 8 },
-  inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: C.inputBg,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: C.border,
-    paddingHorizontal: 14,
-    height: 54,
-  },
-  inputIcon: { marginRight: 10 },
-  input: { flex: 1, fontSize: 15, color: C.text },
-  eyeBtn: { padding: 4 },
-  btn: {
-    backgroundColor: C.primary,
-    borderRadius: 14,
-    height: 54,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 24,
-    marginBottom: 20,
-    shadowColor: C.primary,
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
-  },
-  pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
-  btnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  loginRow: { textAlign: "center", fontSize: 14, color: C.gray },
-  loginLink: { color: C.link, fontWeight: "700" },
-});
+const makeStyles = (t: ReturnType<typeof useTheme>["theme"]) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: t.bg,
+    },
+    inner: {
+      paddingHorizontal: 28,
+      paddingTop: 16,
+      paddingBottom: 40,
+    },
+    backBtn: {
+      marginBottom: 32,
+    },
+    title: {
+      fontSize: 32,
+      fontWeight: "800",
+      color: t.text,
+      marginBottom: 8,
+    },
+    subtitle: {
+      fontSize: 15,
+      color: t.textSecond,
+      marginBottom: 32,
+    },
+    fields: {
+      gap: 12,
+      marginBottom: 24,
+    },
+    inputWrapper: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: t.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: t.border,
+      paddingHorizontal: 16,
+      height: 54,
+    },
+    input: {
+      flex: 1,
+      fontSize: 15,
+      color: t.text,
+    },
+    eyeBtn: {
+      padding: 4,
+    },
+    btn: {
+      backgroundColor: t.primary,
+      borderRadius: 14,
+      height: 54,
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: 20,
+    },
+    pressed: {
+      opacity: 0.85,
+      transform: [{ scale: 0.98 }],
+    },
+    btnText: {
+      color: "#fff",
+      fontSize: 16,
+      fontWeight: "700",
+    },
+    loginRow: {
+      textAlign: "center",
+      fontSize: 14,
+      color: t.textSecond,
+      marginBottom: 16,
+    },
+    loginLink: {
+      color: t.primary,
+      fontWeight: "700",
+    },
+    terms: {
+      fontSize: 11,
+      color: t.textThird,
+      textAlign: "center",
+      lineHeight: 17,
+      paddingHorizontal: 8,
+    },
+    termsLink: {
+      color: t.primary,
+      fontWeight: "600",
+    },
+  });

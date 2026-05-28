@@ -1,25 +1,20 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
 
-// ─── Credenciales del proyecto Firebase ───────────────────
-// Se obtienen en: console.firebase.google.com
-// → Project Settings → Your apps → SDK setup
-// ⚠️  No compartir públicamente estas claves.
+// ─── Firebase Auth Config (actualizado a tasklife-a2824) ───
+// Valores extraídos de `google-services.json` (raíz del repo)
+// Proyecto definitivo: tasklife-a2824
 const firebaseConfig = {
-  apiKey: "AIzaSyAVBVnwNKIcIAd59KrA1Yskv_6V9k97pvQ",
-  authDomain: "tasklife-4918b.firebaseapp.com",
-  projectId: "tasklife-4918b",           // identifica el proyecto en Firebase
-  storageBucket: "tasklife-4918b.firebasestorage.app",
-  messagingSenderId: "998669261303",
-  appId: "1:998669261303:android:4880ae604ceda1b3a8b6f2",
+  apiKey: "AIzaSyBsUoSKYbSF4GuiDmqfJPXU5-hKQoF-xkY",
+  authDomain: "tasklife-a2824.firebaseapp.com",
+  projectId: "tasklife-a2824",
+  storageBucket: "tasklife-a2824.firebasestorage.app",
+  messagingSenderId: "245945667061",
+  appId: "1:245945667061:android:b6e19423e0f041f2e6a4bc",
 };
 
-// Inicializa Firebase una sola vez para toda la app
+// Inicializa Firebase Auth
 const app = initializeApp(firebaseConfig);
 
 // auth → maneja login, registro y sesión de usuarios
 export const auth = getAuth(app);
-
-// db → instancia de Firestore (base de datos NoSQL en la nube)
-export const db = getFirestore(app);

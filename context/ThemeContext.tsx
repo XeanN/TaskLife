@@ -1,40 +1,59 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+    getThemePreference,
+    saveThemePreference,
+} from "@/services/storageService";
 import { createContext, useContext, useEffect, useState } from "react";
 
-// ─── Paletas ──────────────────────────────────────────────
+// ── Paletas ───────────────────────────────────────────────
+
 export const LIGHT = {
-  bg: "#E9ECEF",
+  bg: "#F0F4F8",
   card: "#FFFFFF",
+  cardAlt: "#F7FAFC",
   text: "#1A1A2E",
   textSecond: "#6B7280",
-  border: "#F0F0F0",
-  primary: "#3F7EA6",
-  inputBg: "#F5F5F5",
+  textThird: "#9CA3AF",
+  border: "#E8EDF2",
+  primary: "#4A7FA5",
+  primaryLight: "#EAF4FB",
+  inputBg: "#F5F8FA",
   tabBar: "#FFFFFF",
   headerBg: "#FFFFFF",
   iconBg: "#EAF4FB",
   gold: "#C58B00",
   goldBg: "#FDF3DC",
+  success: "#38A169",
+  successBg: "#F0FFF4",
+  danger: "#E53E3E",
+  dangerBg: "#FFF5F5",
+  shadow: "#000000",
 };
 
 export const DARK = {
   bg: "#0F1117",
-  card: "#1E2130",
+  card: "#1A1D2E",
+  cardAlt: "#141728",
   text: "#F0F4F8",
   textSecond: "#9AA5B4",
+  textThird: "#6B7280",
   border: "#2D3248",
   primary: "#5B9EC9",
-  inputBg: "#2D3248",
-  tabBar: "#161927",
-  headerBg: "#161927",
+  primaryLight: "#1A2A3A",
+  inputBg: "#1E2235",
+  tabBar: "#13151F",
+  headerBg: "#13151F",
   iconBg: "#1A2A3A",
   gold: "#E0A94A",
   goldBg: "#2A2010",
+  success: "#48BB78",
+  successBg: "#1A2E22",
+  danger: "#FC8181",
+  dangerBg: "#2D1515",
+  shadow: "#000000",
 };
 
 export type Theme = typeof LIGHT;
 
-// ─── Context ──────────────────────────────────────────────
 type ThemeCtx = {
   dark: boolean;
   theme: Theme;
@@ -49,19 +68,23 @@ const ThemeContext = createContext<ThemeCtx>({
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [dark, setDark] = useState(false);
+  const [ready, setReady] = useState(false);
 
-  // Cargar preferencia guardada al iniciar
   useEffect(() => {
-    AsyncStorage.getItem("theme").then((val) => {
+    getThemePreference().then((val) => {
       if (val === "dark") setDark(true);
+      setReady(true);
     });
   }, []);
 
   const toggle = async () => {
     const next = !dark;
     setDark(next);
-    await AsyncStorage.setItem("theme", next ? "dark" : "light");
+    await saveThemePreference(next);
   };
+
+  // No renderiza hasta saber el tema guardado (evita flash)
+  if (!ready) return null;
 
   return (
     <ThemeContext.Provider value={{ dark, theme: dark ? DARK : LIGHT, toggle }}>

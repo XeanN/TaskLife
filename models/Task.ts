@@ -1,0 +1,38 @@
+export type Priority = "alta" | "media" | "baja";
+
+export type TaskFormData = {
+  title: string;
+  description: string;
+  priority: Priority;
+  dueDate?: Date;
+  // Optional programmable reminders: array of presets { offsetDays, hour, minute }
+  reminders?: { offsetDays: number; hour?: number; minute?: number }[];
+  labelIds: string[];
+  areaId: string;
+};
+
+export type Task = {
+  id: string;
+  title: string;
+  description?: string;
+  done: boolean;
+  dueDate?: Date;
+  reminders?: TaskReminderPreset[];
+  priority: Priority;
+  labelIds: string[];
+  areaId: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type NewTask = Omit<Task, "id" | "createdAt" | "updatedAt">;
+
+export type TaskReminderPreset = {
+  offsetDays: number;
+  hour?: number;
+  minute?: number;
+};
+
+export type TaskWithReminders = Task & {
+  reminders?: TaskReminderPreset[];
+};

@@ -1,7 +1,5 @@
 import { Stack } from "expo-router";
 
-// Este layout envuelve todas las pantallas de (auth)
-// sin mostrar ningún header ni bottom tabs
 export default function AuthLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>

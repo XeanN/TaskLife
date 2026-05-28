@@ -1,448 +1,255 @@
-import { useAuth } from "@/context/AuthContext";
-import {
-  createTask,
-  deleteTask,
-  Priority,
-  subscribeToTasks,
-  Task,
-  toggleTask,
-  updateTask,
-} from "@/services/taskService";
+import { ErrorAlert, useErrorAlert } from "@/components/ErrorAlert";
+import LabelSheet from "@/components/LabelSheet";
+import TaskFormSheet from "@/components/TaskFormSheet";
+import { useTheme } from "@/context/ThemeContext";
+import { FilterType, SortKey } from "@/controllers/TaskController";
+import { useLabels } from "@/hooks/useLabels";
+import { useAreaTasks } from "@/hooks/useTasks";
+import type { AreaId } from "@/models/Area";
+import { PRIORITIES, getNextArea, getPrevArea } from "@/models/Area";
+import { Task, TaskFormData } from "@/models/Task";
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import {
-  Alert,
-  FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-// useSafeAreaInsets para posicionar el FAB sobre la nav bar del sistema
+import {
+    SafeAreaView,
+    useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
-// ─── Constantes ───────────────────────────────────────────
-const PRIORITIES: { value: Priority; label: string; color: string }[] = [
-  { value: "alta", label: "Alta", color: "#E53E3E" },
-  { value: "media", label: "Media", color: "#C58B00" },
-  { value: "baja", label: "Baja", color: "#38A169" },
-];
+// ── TaskRow ───────────────────────────────────────────────
 
-const FILTERS = ["Todas", "Pendientes", "Completadas"] as const;
-type Filter = (typeof FILTERS)[number];
-type SortKey = "fecha" | "prioridad" | "nombre";
-
-const PRIORITY_ORDER: Record<Priority, number> = { alta: 0, media: 1, baja: 2 };
-
-// ─── Componente tarea ─────────────────────────────────────
-function TaskCard({
+function TaskRow({
   task,
   color,
   onToggle,
   onEdit,
   onDelete,
+  theme,
+  labelNames,
 }: {
   task: Task;
   color: string;
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  theme: any;
+  labelNames: { id: string; name: string; color: string }[];
 }) {
-  const p = PRIORITIES.find((x) => x.value === task.priority)!;
-  const overdue = task.dueDate && !task.done && task.dueDate < new Date();
+  const priority = (task.priority as any) || "baja";
+  const p = PRIORITIES.find((x) => x.value === priority) || PRIORITIES[2];
+  const overdue = task.dueDate && !task.done && new Date(task.dueDate) < new Date();
 
   return (
-    <View style={tc.card}>
-      <Pressable onPress={onToggle} style={tc.check}>
+    <Pressable
+      style={[
+        tr.card,
+        { backgroundColor: theme.card, borderColor: theme.border },
+      ]}
+      onPress={onEdit}
+    >
+      {/* Check */}
+      <Pressable onPress={onToggle} style={tr.check} hitSlop={10}>
         <Ionicons
           name={task.done ? "checkmark-circle" : "ellipse-outline"}
-          size={24}
-          color={task.done ? color : "#ccc"}
+          size={26}
+          color={task.done ? color : theme.border}
         />
       </Pressable>
 
-      <Pressable style={tc.body} onPress={onEdit}>
-        <Text style={[tc.title, task.done && tc.done]}>{task.title}</Text>
+      {/* Body */}
+      <View style={tr.body}>
+        <Text
+          style={[
+            tr.title,
+            { color: theme.text },
+            task.done && {
+              textDecorationLine: "line-through",
+              color: theme.textThird,
+            },
+          ]}
+          numberOfLines={2}
+        >
+          {task.title}
+        </Text>
+
         {!!task.description && (
-          <Text style={tc.desc} numberOfLines={1}>
+          <Text
+            style={[tr.desc, { color: theme.textSecond }]}
+            numberOfLines={1}
+          >
             {task.description}
           </Text>
         )}
-        <View style={tc.meta}>
-          {/* Prioridad */}
-          <View style={[tc.badge, { backgroundColor: p.color + "22" }]}>
-            <Text style={[tc.badgeText, { color: p.color }]}>{p.label}</Text>
-          </View>
+
+        <View style={tr.meta}>
           {/* Fecha */}
           {task.dueDate && (
             <View
               style={[
-                tc.badge,
-                { backgroundColor: overdue ? "#FEE2E2" : "#F0F0F0" },
+                tr.pill,
+                {
+                  backgroundColor: overdue ? theme.dangerBg : theme.inputBg,
+                },
               ]}
             >
               <Ionicons
                 name="calendar-outline"
                 size={10}
-                color={overdue ? "#E53E3E" : "#888"}
+                color={overdue ? theme.danger : theme.textSecond}
               />
               <Text
-                style={[tc.badgeText, { color: overdue ? "#E53E3E" : "#888" }]}
+                style={[
+                  tr.pillText,
+                  { color: overdue ? theme.danger : theme.textSecond },
+                ]}
               >
-                {task.dueDate.toLocaleDateString("es-ES", {
+                {new Date(task.dueDate).toLocaleDateString("es-ES", {
                   day: "numeric",
                   month: "short",
                 })}
               </Text>
             </View>
           )}
+
+          {/* Prioridad */}
+          <View style={[tr.pill, { backgroundColor: p.color + "22" }]}>
+            <Text style={[tr.pillText, { color: p.color }]}>{p.label}</Text>
+          </View>
+
+          {/* Etiquetas */}
+          {labelNames.map((lbl) => (
+            <View
+              key={lbl.id}
+              style={[tr.pill, { backgroundColor: lbl.color + "22" }]}
+            >
+              <Text style={[tr.pillText, { color: lbl.color }]}>
+                {lbl.name}
+              </Text>
+            </View>
+          ))}
         </View>
-      </Pressable>
+      </View>
 
       {/* Menú */}
       <Pressable
         onPress={() =>
           Alert.alert(task.title, "", [
-            { text: "Editar", onPress: onEdit },
-            { text: "Eliminar", style: "destructive", onPress: onDelete },
+            { text: "Editar tarea", onPress: onEdit },
+            {
+              text: "Eliminar tarea",
+              style: "destructive",
+              onPress: onDelete,
+            },
             { text: "Cancelar", style: "cancel" },
           ])
         }
-        style={tc.menu}
+        style={tr.menu}
+        hitSlop={8}
       >
-        <Ionicons name="ellipsis-vertical" size={18} color="#ccc" />
+        <Ionicons name="ellipsis-vertical" size={18} color={theme.textThird} />
       </Pressable>
-    </View>
+    </Pressable>
   );
 }
 
-const tc = StyleSheet.create({
+const tr = StyleSheet.create({
   card: {
     flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
+    alignItems: "flex-start",
     borderRadius: 14,
     padding: 14,
-    marginBottom: 10,
+    marginBottom: 8,
     gap: 10,
-    elevation: 2,
+    borderWidth: 1,
   },
-  check: { padding: 2 },
+  check: { padding: 2, marginTop: 1 },
   body: { flex: 1 },
-  title: { fontSize: 14, fontWeight: "600", color: "#1A1A2E", marginBottom: 4 },
-  done: { textDecorationLine: "line-through", color: "#aaa" },
-  desc: { fontSize: 12, color: "#6B7280", marginBottom: 6 },
+  title: { fontSize: 14, fontWeight: "600", marginBottom: 4, lineHeight: 20 },
+  desc: { fontSize: 12, marginBottom: 6 },
   meta: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
-  badge: {
+  pill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
     paddingHorizontal: 7,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 6,
   },
-  badgeText: { fontSize: 10, fontWeight: "600" },
-  menu: { padding: 4 },
+  pillText: { fontSize: 10, fontWeight: "600" },
+  menu: { padding: 4, marginTop: 2 },
 });
 
-// ─── Modal crear/editar ───────────────────────────────────
-function TaskFormModal({
-  visible,
-  onClose,
-  onSave,
-  initial,
-  color,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onSave: (data: {
-    title: string;
-    description: string;
-    priority: Priority;
-    dueDate?: Date;
-  }) => void;
-  initial?: Task;
-  color: string;
-}) {
-  const [title, setTitle] = useState(initial?.title ?? "");
-  const [desc, setDesc] = useState(initial?.description ?? "");
-  const [priority, setPriority] = useState<Priority>(
-    initial?.priority ?? "media",
-  );
-  const [dueDate, setDueDate] = useState<Date | undefined>(initial?.dueDate);
-  const [showDate, setShowDate] = useState(false);
+// ── Pantalla principal ────────────────────────────────────
 
-  useEffect(() => {
-    if (visible) {
-      setTitle(initial?.title ?? "");
-      setDesc(initial?.description ?? "");
-      setPriority(initial?.priority ?? "media");
-      setDueDate(initial?.dueDate);
-    }
-  }, [visible, initial]);
-
-  const handleSave = () => {
-    if (!title.trim()) {
-      Alert.alert("Escribe un nombre para la tarea");
-      return;
-    }
-    onSave({
-      title: title.trim(),
-      description: desc.trim(),
-      priority,
-      dueDate,
-    });
-  };
-
-  return (
-    <Modal visible={visible} transparent animationType="slide">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={fm.overlay}
-      >
-        <View style={fm.card}>
-          <Text style={fm.heading}>
-            {initial ? "Editar tarea" : "Nueva tarea"}
-          </Text>
-
-          {/* Título */}
-          <TextInput
-            style={fm.input}
-            placeholder="Nombre de la tarea"
-            placeholderTextColor="#aaa"
-            value={title}
-            onChangeText={setTitle}
-            autoFocus
-          />
-
-          {/* Descripción */}
-          <TextInput
-            style={[fm.input, { height: 72, textAlignVertical: "top" }]}
-            placeholder="Descripción (opcional)"
-            placeholderTextColor="#aaa"
-            value={desc}
-            onChangeText={setDesc}
-            multiline
-          />
-
-          {/* Prioridad */}
-          <Text style={fm.label}>Prioridad</Text>
-          <View style={fm.row}>
-            {PRIORITIES.map((p) => (
-              <Pressable
-                key={p.value}
-                style={[
-                  fm.chip,
-                  priority === p.value && { backgroundColor: p.color },
-                ]}
-                onPress={() => setPriority(p.value)}
-              >
-                <Text
-                  style={[
-                    fm.chipText,
-                    priority === p.value && { color: "#fff" },
-                  ]}
-                >
-                  {p.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          {/* Fecha */}
-          <Text style={fm.label}>Fecha de vencimiento</Text>
-          <Pressable style={fm.dateBtn} onPress={() => setShowDate(true)}>
-            <Ionicons name="calendar-outline" size={16} color="#3F7EA6" />
-            <Text style={fm.dateBtnText}>
-              {dueDate
-                ? dueDate.toLocaleDateString("es-ES", {
-                    weekday: "short",
-                    day: "numeric",
-                    month: "long",
-                  })
-                : "Sin fecha"}
-            </Text>
-            {dueDate && (
-              <Pressable onPress={() => setDueDate(undefined)}>
-                <Ionicons name="close-circle" size={16} color="#aaa" />
-              </Pressable>
-            )}
-          </Pressable>
-
-          {showDate && (
-            <DateTimePicker
-              value={dueDate ?? new Date()}
-              mode="date"
-              display="default"
-              minimumDate={new Date()}
-              onChange={(_, date) => {
-                setShowDate(false);
-                if (date) setDueDate(date);
-              }}
-            />
-          )}
-
-          {/* Botones */}
-          <View style={fm.buttons}>
-            <Pressable style={fm.cancelBtn} onPress={onClose}>
-              <Text style={fm.cancelText}>Cancelar</Text>
-            </Pressable>
-            <Pressable
-              style={[fm.saveBtn, { backgroundColor: color }]}
-              onPress={handleSave}
-            >
-              <Text style={fm.saveText}>{initial ? "Guardar" : "Agregar"}</Text>
-            </Pressable>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-}
-
-const fm = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.4)",
-  },
-  card: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 36,
-  },
-  heading: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#1A1A2E",
-    marginBottom: 16,
-  },
-  input: {
-    backgroundColor: "#F5F5F5",
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 15,
-    color: "#1A1A2E",
-    marginBottom: 12,
-  },
-  label: { fontSize: 13, fontWeight: "600", color: "#6B7280", marginBottom: 8 },
-  row: { flexDirection: "row", gap: 8, marginBottom: 16 },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: "#F0F0F0",
-  },
-  chipText: { fontSize: 13, color: "#6B7280", fontWeight: "500" },
-  dateBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#EAF4FB",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 20,
-  },
-  dateBtnText: { flex: 1, fontSize: 14, color: "#3F7EA6", fontWeight: "500" },
-  buttons: { flexDirection: "row", gap: 12 },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    backgroundColor: "#F5F5F5",
-  },
-  cancelText: { fontSize: 15, color: "#6B7280", fontWeight: "600" },
-  saveBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  saveText: { fontSize: 15, color: "#fff", fontWeight: "700" },
-});
-
-// ─── Pantalla principal ───────────────────────────────────
 export default function AreaTasksScreen() {
   const {
     areaId,
     label,
     color: colorParam,
-  } = useLocalSearchParams<{ areaId: string; label: string; color: string }>();
-  const color = decodeURIComponent(colorParam ?? "#3F7EA6");
-  const { user } = useAuth();
-  // Altura dinámica de la nav bar: 0 en modelos sin botones, >0 en los que sí tienen
+  } = useLocalSearchParams<{
+    areaId: string;
+    label: string;
+    color: string;
+  }>();
+
+  const color = decodeURIComponent(colorParam ?? "#4A7FA5");
+  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const errorAlert = useErrorAlert();
+  const { labels, getByIds } = useLabels();
 
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [filter, setFilter] = useState<Filter>("Todas");
+  const [filter, setFilter] = useState<FilterType>("Todas");
   const [sort, setSort] = useState<SortKey>("fecha");
+  const [labelFilter, setLabelFilter] = useState<string | null>(null);
   const [showSort, setShowSort] = useState(false);
-  const [modalOpen, setModal] = useState(false);
+  const [showLabelFilter, setShowLabelFilter] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Task | undefined>();
+  const [showCompleted, setShowCompleted] = useState(false);
 
-  // Suscribir a Firestore
-  useEffect(() => {
-    if (!user || !areaId) return;
-    const unsub = subscribeToTasks(user.id, areaId, setTasks);
-    return unsub;
-  }, [user, areaId]);
+  const {
+    displayed,
+    pending,
+    completed,
+    stats,
+    save,
+    toggle,
+    remove,
+    loading,
+    error,
+  } = useAreaTasks(areaId, filter, sort, labelFilter);
 
-  // Filtrar y ordenar
-  const displayed = useMemo(() => {
-    let list = tasks.filter((t) => {
-      if (filter === "Pendientes") return !t.done;
-      if (filter === "Completadas") return t.done;
-      return true;
-    });
-    if (sort === "prioridad")
-      list = [...list].sort(
-        (a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority],
-      );
-    if (sort === "nombre")
-      list = [...list].sort((a, b) => a.title.localeCompare(b.title));
-    return list;
-  }, [tasks, filter, sort]);
+  const s = makeStyles(theme, color);
 
-  const pending = tasks.filter((t) => !t.done).length;
-  const completed = tasks.filter((t) => t.done).length;
-
-  const handleSave = async (data: {
-    title: string;
-    description: string;
-    priority: Priority;
-    dueDate?: Date;
-  }) => {
-    if (!user || !areaId) return;
-    try {
-      if (editing) {
-        await updateTask(user.id, areaId, editing.id, data);
-      } else {
-        await createTask(user.id, areaId, {
-          ...data,
-          done: false,
-          labels: [],
-          areaId,
-        });
-      }
-      setModal(false);
-      setEditing(undefined);
-    } catch (e) {
-      Alert.alert("Error", "No se pudo guardar la tarea");
-    }
+  // ── Navegar entre áreas ──────────────────────────────
+  const navigateArea = (direction: "next" | "prev") => {
+    const next =
+      direction === "next"
+        ? getNextArea(areaId as AreaId)
+        : getPrevArea(areaId as AreaId);
+    router.replace(
+      `/area/${next.id}?label=${next.label}&color=${encodeURIComponent(next.color)}`,
+    );
   };
 
-  const handleToggle = async (task: Task) => {
-    if (!user || !areaId) return;
-    await toggleTask(user.id, areaId, task.id, !task.done);
+  // ── Handlers ─────────────────────────────────────────
+  const handleSave = async (formData: TaskFormData) => {
+    try {
+      await save(formData, editing);
+      setFormOpen(false);
+      setEditing(undefined);
+    } catch (e: any) {
+      errorAlert.show(e);
+    }
   };
 
   const handleDelete = (task: Task) => {
@@ -451,255 +258,470 @@ export default function AreaTasksScreen() {
       {
         text: "Eliminar",
         style: "destructive",
-        onPress: async () => {
-          if (!user || !areaId) return;
-          await deleteTask(user.id, areaId, task.id);
-        },
+        onPress: () => remove(task),
       },
     ]);
   };
 
+  const openEdit = (task: Task) => {
+    setEditing(task);
+    setFormOpen(true);
+  };
+
+  const openNew = () => {
+    setEditing(undefined);
+    setFormOpen(true);
+  };
+
+  // Tareas pendientes y completadas separadas para la sección colapsable
+  const pendingTasks = displayed.filter((t) => !t.done);
+  const completedTasks = displayed.filter((t) => t.done);
+
+  const FILTERS: FilterType[] = ["Todas", "Pendientes", "Completadas"];
+  const SORTS: { key: SortKey; label: string }[] = [
+    { key: "fecha", label: "Fecha" },
+    { key: "prioridad", label: "Prioridad" },
+    { key: "nombre", label: "Nombre" },
+  ];
+
   return (
-    <SafeAreaView style={[ps.safe, { backgroundColor: "#E9ECEF" }]}>
-      {/* Header */}
-      <View style={[ps.header, { backgroundColor: color }]}>
-        <Pressable onPress={() => router.back()} style={ps.backBtn}>
-          <Ionicons name="chevron-back" size={24} color="#fff" />
+    <>
+      <ErrorAlert
+        visible={errorAlert.visible}
+        error={errorAlert.error}
+        onDismiss={errorAlert.hide}
+        onRetry={() => {
+          errorAlert.hide();
+          setFormOpen(true);
+        }}
+        autoHideDuration={0}
+      />
+
+      <SafeAreaView style={s.safe}>
+      {/* ── Header coloreado ── */}
+      <View style={s.header}>
+        <Pressable onPress={() => navigateArea("prev")} style={s.navBtn}>
+          <Ionicons name="chevron-back" size={22} color="#fff" />
         </Pressable>
-        <Text style={ps.headerTitle}>{label}</Text>
-        <Pressable
-          onPress={() => {
-            setEditing(undefined);
-            setModal(true);
-          }}
-          style={ps.addBtn}
-        >
-          <Ionicons name="add" size={24} color="#fff" />
+
+        <View style={s.headerCenter}>
+          <Ionicons name="briefcase" size={18} color="#fff" />
+          <Text style={s.headerTitle}>{label}</Text>
+        </View>
+
+        <Pressable onPress={() => navigateArea("next")} style={s.navBtn}>
+          <Ionicons name="chevron-forward" size={22} color="#fff" />
         </Pressable>
       </View>
 
-      {/* Stats */}
-      <View style={ps.statsRow}>
-        <View style={ps.statItem}>
-          <Text style={ps.statNum}>{pending}</Text>
-          <Text style={ps.statLabel}>Pendientes</Text>
+      {/* ── Stats ── */}
+      <View style={s.statsRow}>
+        <View style={s.statItem}>
+          <Text style={[s.statNum, { color: theme.primary }]}>
+            {stats.pending}
+          </Text>
+          <Text style={s.statLabel}>Pendientes</Text>
         </View>
-        <View style={ps.statDivider} />
-        <View style={ps.statItem}>
-          <Text style={ps.statNum}>{completed}</Text>
-          <Text style={ps.statLabel}>Completadas</Text>
+        <View style={s.statDiv} />
+        <View style={s.statItem}>
+          <Text style={[s.statNum, { color: theme.success }]}>
+            {stats.completed}
+          </Text>
+          <Text style={s.statLabel}>Completadas</Text>
         </View>
-        <View style={ps.statDivider} />
-        <View style={ps.statItem}>
-          <Text style={ps.statNum}>{tasks.length}</Text>
-          <Text style={ps.statLabel}>Total</Text>
+        <View style={s.statDiv} />
+        <View style={s.statItem}>
+          <Text style={[s.statNum, { color: theme.text }]}>{stats.total}</Text>
+          <Text style={s.statLabel}>Total</Text>
         </View>
       </View>
 
-      {/* Filtros + Ordenar */}
-      <View style={ps.toolbarRow}>
-        <View style={ps.filterRow}>
+      {/* ── Toolbar: Filtrar + Ordenar ── */}
+      <View style={s.toolbar}>
+        {/* Filtros */}
+        <View style={s.filterRow}>
           {FILTERS.map((f) => (
             <Pressable
               key={f}
-              style={[
-                ps.filterChip,
-                filter === f && { backgroundColor: color },
-              ]}
+              style={[s.chip, filter === f && { backgroundColor: color }]}
               onPress={() => setFilter(f)}
             >
-              <Text style={[ps.filterText, filter === f && { color: "#fff" }]}>
+              <Text style={[s.chipText, filter === f && { color: "#fff" }]}>
                 {f}
               </Text>
             </Pressable>
           ))}
         </View>
-        <Pressable style={ps.sortBtn} onPress={() => setShowSort(true)}>
-          <Ionicons name="swap-vertical-outline" size={16} color="#3F7EA6" />
-          <Text style={ps.sortText}>Ordenar</Text>
+
+        {/* Ordenar */}
+        <Pressable style={s.sortBtn} onPress={() => setShowSort(true)}>
+          <Ionicons
+            name="swap-vertical-outline"
+            size={14}
+            color={theme.primary}
+          />
+          <Text style={s.sortText}>Ordenar</Text>
         </Pressable>
       </View>
 
-      {/* Lista */}
+      {/* Filtro por etiqueta */}
+      {labels.length > 0 && (
+        <View style={s.labelFilterRow}>
+          <Pressable
+            style={[
+              s.labelChip,
+              !labelFilter && {
+                backgroundColor: color + "22",
+                borderColor: color,
+              },
+            ]}
+            onPress={() => setLabelFilter(null)}
+          >
+            <Text style={[s.labelChipText, !labelFilter && { color }]}>
+              Todas
+            </Text>
+          </Pressable>
+          {labels.map((lbl) => (
+            <Pressable
+              key={lbl.id}
+              style={[
+                s.labelChip,
+                labelFilter === lbl.id && {
+                  backgroundColor: lbl.color + "22",
+                  borderColor: lbl.color,
+                },
+              ]}
+              onPress={() =>
+                setLabelFilter(labelFilter === lbl.id ? null : lbl.id)
+              }
+            >
+              <View style={[s.labelDot, { backgroundColor: lbl.color }]} />
+              <Text
+                style={[
+                  s.labelChipText,
+                  labelFilter === lbl.id && { color: lbl.color },
+                ]}
+              >
+                {lbl.name}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      {/* ── Lista ── */}
       <FlatList
-        data={displayed}
+        data={pendingTasks}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={ps.list}
+        contentContainerStyle={[s.list, { paddingBottom: insets.bottom + 80 }]}
+        showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
-          <TaskCard
+          <TaskRow
             task={item}
             color={color}
-            onToggle={() => handleToggle(item)}
-            onEdit={() => {
-              setEditing(item);
-              setModal(true);
-            }}
+            theme={theme}
+            labelNames={getByIds(item.labelIds)}
+            onToggle={() => toggle(item)}
+            onEdit={() => openEdit(item)}
             onDelete={() => handleDelete(item)}
           />
         )}
         ListEmptyComponent={
-          <View style={ps.empty}>
-            <Ionicons
-              name="checkmark-done-circle-outline"
-              size={56}
-              color="#ccc"
-            />
-            <Text style={ps.emptyText}>No hay tareas aquí</Text>
-            <Text style={ps.emptyHint}>Toca + para agregar una</Text>
-          </View>
+          loading ? (
+            <View style={s.empty}>
+              <ActivityIndicator color={theme.primary} />
+              <Text style={s.emptyText}>Cargando tareas...</Text>
+            </View>
+          ) : error ? (
+            <View style={s.empty}>
+              <Ionicons
+                name="cloud-offline-outline"
+                size={56}
+                color={theme.border}
+              />
+              <Text style={s.emptyText}>No se pudieron cargar</Text>
+              <Text style={s.emptyHint}>Revisa tu conexión y vuelve a intentar</Text>
+            </View>
+          ) : pendingTasks.length === 0 ? (
+            <View style={s.empty}>
+              <Ionicons
+                name="checkmark-done-circle-outline"
+                size={56}
+                color={theme.border}
+              />
+              <Text style={s.emptyText}>No hay tareas aquí</Text>
+              <Text style={s.emptyHint}>Toca + para agregar una</Text>
+            </View>
+          ) : null
         }
-        showsVerticalScrollIndicator={false}
+        ListFooterComponent={
+          completedTasks.length > 0 ? (
+            <View style={s.completedSection}>
+              <Pressable
+                style={s.completedHeader}
+                onPress={() => setShowCompleted((v) => !v)}
+              >
+                <Ionicons
+                  name={showCompleted ? "chevron-down" : "chevron-forward"}
+                  size={16}
+                  color={theme.textSecond}
+                />
+                <Text style={s.completedTitle}>
+                  Completadas ({completedTasks.length})
+                </Text>
+              </Pressable>
+
+              {showCompleted &&
+                completedTasks.map((item) => (
+                  <TaskRow
+                    key={item.id}
+                    task={item}
+                    color={color}
+                    theme={theme}
+                    labelNames={getByIds(item.labelIds)}
+                    onToggle={() => toggle(item)}
+                    onEdit={() => openEdit(item)}
+                    onDelete={() => handleDelete(item)}
+                  />
+                ))}
+            </View>
+          ) : null
+        }
       />
 
-      {/* FAB — bottom dinámico: sube sobre la nav bar si el modelo la tiene */}
+      {/* ── FAB ── */}
       <Pressable
-        style={[ps.fab, { backgroundColor: color, bottom: insets.bottom + 16 }]}
-        onPress={() => {
-          setEditing(undefined);
-          setModal(true);
-        }}
+        style={[s.fab, { backgroundColor: color, bottom: insets.bottom + 16 }]}
+        onPress={openNew}
       >
         <Ionicons name="add" size={28} color="#fff" />
       </Pressable>
 
-      {/* Modal ordenar */}
-      <Modal visible={showSort} transparent animationType="fade">
-        <Pressable style={ps.sortOverlay} onPress={() => setShowSort(false)}>
-          <View style={ps.sortCard}>
-            <Text style={ps.sortTitle}>Ordenar por</Text>
-            {(["fecha", "prioridad", "nombre"] as SortKey[]).map((key) => (
+      {/* ── Modal ordenar ── */}
+      {showSort && (
+        <Pressable style={s.sortOverlay} onPress={() => setShowSort(false)}>
+          <Pressable style={[s.sortCard, { backgroundColor: theme.card }]}>
+            <Text style={[s.sortTitle, { color: theme.text }]}>
+              Ordenar por
+            </Text>
+            {SORTS.map((opt) => (
               <Pressable
-                key={key}
-                style={ps.sortOption}
+                key={opt.key}
+                style={[s.sortOption, { borderTopColor: theme.border }]}
                 onPress={() => {
-                  setSort(key);
+                  setSort(opt.key);
                   setShowSort(false);
                 }}
               >
                 <Text
                   style={[
-                    ps.sortOptionText,
-                    sort === key && { color, fontWeight: "700" },
+                    s.sortOptionText,
+                    { color: theme.textSecond },
+                    sort === opt.key && {
+                      color,
+                      fontWeight: "700",
+                    },
                   ]}
                 >
-                  {key.charAt(0).toUpperCase() + key.slice(1)}
+                  {opt.label}
                 </Text>
-                {sort === key && (
+                {sort === opt.key && (
                   <Ionicons name="checkmark" size={18} color={color} />
                 )}
               </Pressable>
             ))}
-          </View>
+          </Pressable>
         </Pressable>
-      </Modal>
+      )}
 
-      {/* Modal crear/editar */}
-      <TaskFormModal
-        visible={modalOpen}
+      {/* ── Form sheet ── */}
+      <TaskFormSheet
+        visible={formOpen}
         onClose={() => {
-          setModal(false);
+          setFormOpen(false);
           setEditing(undefined);
         }}
         onSave={handleSave}
         initial={editing}
-        color={color}
+        defaultAreaId={areaId}
+        labels={labels}
+        areaColor={color}
+      />
+
+      {/* ── Label sheet ── */}
+      <LabelSheet
+        visible={showLabelFilter}
+        onClose={() => setShowLabelFilter(false)}
+        labels={labels}
+        selectedIds={labelFilter ? [labelFilter] : []}
+        onToggle={(id) => setLabelFilter(labelFilter === id ? null : id)}
       />
     </SafeAreaView>
+    </>
   );
 }
 
-const ps = StyleSheet.create({
-  safe: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 12,
-  },
-  backBtn: { padding: 4 },
-  headerTitle: { flex: 1, fontSize: 20, fontWeight: "800", color: "#fff" },
-  addBtn: { padding: 4 },
-  statsRow: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    marginHorizontal: 20,
-    marginTop: 12,
-    borderRadius: 14,
-    padding: 12,
-    elevation: 2,
-  },
-  statItem: { flex: 1, alignItems: "center" },
-  statNum: { fontSize: 20, fontWeight: "800", color: "#1A1A2E" },
-  statLabel: { fontSize: 11, color: "#6B7280", marginTop: 2 },
-  statDivider: { width: 1, backgroundColor: "#F0F0F0" },
-  toolbarRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    gap: 8,
-  },
-  filterRow: { flexDirection: "row", gap: 6, flex: 1 },
-  filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-  },
-  filterText: { fontSize: 12, color: "#6B7280", fontWeight: "500" },
-  sortBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#EAF4FB",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  sortText: { fontSize: 12, color: "#3F7EA6", fontWeight: "600" },
-  list: { paddingHorizontal: 20, paddingBottom: 100, paddingTop: 4 },
-  empty: { alignItems: "center", paddingTop: 60, gap: 8 },
-  emptyText: { fontSize: 16, color: "#ccc", fontWeight: "600" },
-  emptyHint: { fontSize: 13, color: "#ddd" },
-  fab: {
-    position: "absolute",
-    // bottom se pasa dinámico desde el componente usando insets.bottom
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 6,
-  },
-  sortOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  sortCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
-    width: 240,
-  },
-  sortTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1A1A2E",
-    marginBottom: 12,
-  },
-  sortOption: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#F0F0F0",
-  },
-  sortOptionText: { fontSize: 15, color: "#6B7280" },
-});
+const makeStyles = (t: ReturnType<typeof useTheme>["theme"], color: string) =>
+  StyleSheet.create({
+    safe: { flex: 1, backgroundColor: t.bg },
+
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: color,
+      paddingHorizontal: 8,
+      paddingVertical: 14,
+    },
+    navBtn: {
+      width: 40,
+      height: 40,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 20,
+    },
+    headerCenter: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+    },
+    headerTitle: {
+      fontSize: 20,
+      fontWeight: "800",
+      color: "#fff",
+    },
+
+    statsRow: {
+      flexDirection: "row",
+      backgroundColor: t.card,
+      marginHorizontal: 16,
+      marginTop: 12,
+      borderRadius: 14,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    statItem: { flex: 1, alignItems: "center", gap: 2 },
+    statNum: { fontSize: 22, fontWeight: "800" },
+    statLabel: { fontSize: 11, color: t.textSecond },
+    statDiv: { width: 1, backgroundColor: t.border },
+
+    toolbar: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      gap: 8,
+    },
+    filterRow: { flexDirection: "row", gap: 6, flex: 1 },
+    chip: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+      backgroundColor: t.card,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    chipText: { fontSize: 12, color: t.textSecond, fontWeight: "500" },
+    sortBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      backgroundColor: t.primaryLight,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 20,
+    },
+    sortText: { fontSize: 12, color: t.primary, fontWeight: "600" },
+
+    labelFilterRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      paddingHorizontal: 16,
+      gap: 6,
+      marginBottom: 4,
+    },
+    labelChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 20,
+      backgroundColor: t.card,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    labelDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+    labelChipText: {
+      fontSize: 11,
+      color: t.textSecond,
+      fontWeight: "500",
+    },
+
+    list: { paddingHorizontal: 16, paddingTop: 8 },
+
+    empty: { alignItems: "center", paddingTop: 60, gap: 8 },
+    emptyText: { fontSize: 16, color: t.textThird, fontWeight: "600" },
+    emptyHint: { fontSize: 13, color: t.border },
+
+    completedSection: { marginTop: 8 },
+    completedHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingVertical: 12,
+      paddingHorizontal: 4,
+    },
+    completedTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: t.textSecond,
+    },
+
+    fab: {
+      position: "absolute",
+      right: 20,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      alignItems: "center",
+      justifyContent: "center",
+      elevation: 6,
+    },
+
+    sortOverlay: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    sortCard: {
+      borderRadius: 16,
+      padding: 20,
+      width: 240,
+      elevation: 10,
+    },
+    sortTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      marginBottom: 8,
+    },
+    sortOption: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 13,
+      borderTopWidth: 1,
+    },
+    sortOptionText: { fontSize: 15 },
+  });
