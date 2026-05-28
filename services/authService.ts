@@ -1,16 +1,17 @@
 import { auth } from "@/config/firebase";
 import { User } from "@/models/User";
+import { clearBackendAccessToken, setBackendAccessToken } from "@/services/apiClient";
 import { parseApiError } from "@/services/errorHandler";
 import { getApiUrl } from "@/services/runtimeConfig";
 import {
-  createUserWithEmailAndPassword,
-  User as FirebaseUser,
-  GoogleAuthProvider,
-  onAuthStateChanged,
-  signInWithCredential,
-  signInWithEmailAndPassword,
-  signOut,
-  updateProfile,
+    createUserWithEmailAndPassword,
+    User as FirebaseUser,
+    GoogleAuthProvider,
+    onAuthStateChanged,
+    signInWithCredential,
+    signInWithEmailAndPassword,
+    signOut,
+    updateProfile,
 } from "firebase/auth";
 
 type AuthUser = Exclude<User, null>;
@@ -47,9 +48,13 @@ export async function signOutUser() {
 
 type FirebaseAuthBackendResponse = {
   uid?: string;
+  id?: string;
   email?: string;
   emailVerified?: boolean;
   user?: AuthUser;
+  accessToken?: string;
+  token?: string;
+  sessionToken?: string;
 };
 
 function normalizeBackendUser(
@@ -65,13 +70,17 @@ function normalizeBackendUser(
   };
 }
 
+function extractAccessToken(response: FirebaseAuthBackendResponse): string | null {
+  return response.accessToken || response.token || response.sessionToken || null;
+}
+
 export async function signInWithGoogleFirebase(): Promise<AuthUser> {
   throw new Error(
     "Este helper fue reemplazado por el flujo Expo Auth Session en useGoogleAuth",
   );
 }
 
-export async function exchangeGoogleIdTokenWithFirebase(
+export async function exchangeFirebaseIdTokenWithBackend(
   idToken: string,
 ): Promise<AuthUser> {
   if (!isGoogleAuthConfigured) {
@@ -101,5 +110,46 @@ export async function exchangeGoogleIdTokenWithFirebase(
   }
 
   const response = (await res.json()) as FirebaseAuthBackendResponse;
+  const accessToken = extractAccessToken(response);
+  if (accessToken) {
+    await setBackendAccessToken(accessToken);
+  }
+
   return normalizeBackendUser(response.user, credentialResult.user);
+}
+
+export async function exchangeGoogleIdTokenWithFirebase(
+  idToken: string,
+): Promise<AuthUser> {
+  return exchangeFirebaseIdTokenWithBackend(idToken);
+}
+
+export async function exchangeCurrentFirebaseUserWithBackend(
+  fallbackUser: FirebaseUser,
+): Promise<AuthUser> {
+  const firebaseIdToken = await fallbackUser.getIdToken();
+  const API_URL = getApiUrl();
+  const res = await fetch(`${API_URL}/auth/firebase`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ idToken: firebaseIdToken }),
+  });
+
+  if (!res.ok) {
+    throw await parseApiError(res);
+  }
+
+  const response = (await res.json()) as FirebaseAuthBackendResponse;
+  const accessToken = extractAccessToken(response);
+  if (accessToken) {
+    await setBackendAccessToken(accessToken);
+  }
+
+  return normalizeBackendUser(response.user, fallbackUser);
+}
+
+export async function clearBackendSession() {
+  await clearBackendAccessToken();
 }

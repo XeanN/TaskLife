@@ -1,7 +1,10 @@
 import { useTheme } from "@/context/ThemeContext";
+import { apiFetch } from "@/services/apiClient";
+import { getApiUrl, getApiUrlDefault, loadApiUrlOverride, setApiUrlOverride } from "@/services/runtimeConfig";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const SECTIONS = [
@@ -35,6 +38,54 @@ const SECTIONS = [
 export default function PrivacyScreen() {
   const { theme } = useTheme();
   const s = makeStyles(theme);
+  const params = useLocalSearchParams<{ debug?: string }>();
+  const debugMode = params.debug === "1" || params.debug === "true";
+  const [override, setOverride] = useState<string | null>(null);
+  const [input, setInput] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [lastResult, setLastResult] = useState<string>("");
+
+  useEffect(() => {
+    loadApiUrlOverride().then((value) => {
+      setOverride(value);
+      setInput(value ?? "");
+    });
+  }, []);
+
+  const apiUrl = useMemo(() => getApiUrl(), [override]);
+
+  const saveOverride = async () => {
+    const value = input.trim().length ? input.trim() : null;
+    await setApiUrlOverride(value);
+    setOverride(value);
+    setLastResult(value ? `Override guardado: ${value}` : "Override eliminado");
+    alert(value ? "Override guardado." : "Override eliminado.");
+  };
+
+  const clearOverride = async () => {
+    await setApiUrlOverride(null);
+    setOverride(null);
+    setInput("");
+    setLastResult("Override eliminado");
+    alert("Override eliminado.");
+  };
+
+  const testConnection = async () => {
+    setTesting(true);
+    setLastResult("");
+    try {
+      const res = await apiFetch(`${apiUrl}/health`, { method: "GET" });
+      const text = await res.text();
+      setLastResult(`Status ${res.status}: ${text}`);
+      alert(`Status ${res.status}`);
+    } catch (err: any) {
+      const message = err?.message || String(err);
+      setLastResult(`Error: ${message}`);
+      alert(`Error: ${message}`);
+    } finally {
+      setTesting(false);
+    }
+  };
 
   return (
     <SafeAreaView style={s.safe}>
@@ -82,6 +133,42 @@ export default function PrivacyScreen() {
           </View>
         ))}
 
+        {debugMode && (
+          <View style={[s.hiddenCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[s.hiddenTitle, { color: theme.text }]}>Ajuste oculto de API</Text>
+            <Text style={[s.hiddenText, { color: theme.textSecond }]}>URL por defecto: {getApiUrlDefault()}</Text>
+            <Text style={[s.hiddenText, { color: theme.textSecond }]}>Override actual: {override ?? "(ninguno)"}</Text>
+
+            <Text style={[s.hiddenLabel, { color: theme.text }]}>Nueva URL API</Text>
+            <TextInput
+              value={input}
+              onChangeText={setInput}
+              placeholder="https://tu-api-publica.com"
+              placeholderTextColor={theme.textThird}
+              autoCapitalize="none"
+              autoCorrect={false}
+              multiline
+              style={[s.hiddenInput, { color: theme.text, borderColor: theme.border }]}
+            />
+
+            <Text style={[s.hiddenHelp, { color: theme.textThird }]}>Pega aquí la URL nueva y guarda. Esto funciona sin iniciar sesión.</Text>
+
+            <View style={s.hiddenRow}>
+              <Pressable style={s.hiddenBtn} onPress={testConnection} disabled={testing}>
+                <Text style={s.hiddenBtnText}>{testing ? "Probando..." : "Probar /health"}</Text>
+              </Pressable>
+              <Pressable style={[s.hiddenBtn, { backgroundColor: theme.primary }]} onPress={saveOverride}>
+                <Text style={s.hiddenBtnText}>Guardar</Text>
+              </Pressable>
+              <Pressable style={[s.hiddenBtn, { backgroundColor: theme.danger }]} onPress={clearOverride}>
+                <Text style={s.hiddenBtnText}>Limpiar</Text>
+              </Pressable>
+            </View>
+
+            {!!lastResult && <Text style={[s.hiddenResult, { color: theme.textSecond }]}>{lastResult}</Text>}
+          </View>
+        )}
+
         <Text style={[s.footer, { color: theme.textThird }]}>
           TaskLife v1.0.0 · tasklife.app
         </Text>
@@ -124,5 +211,35 @@ const makeStyles = (t: ReturnType<typeof useTheme>["theme"]) =>
     },
     cardTitle: { fontSize: 15, fontWeight: "700", flex: 1 },
     cardBody: { fontSize: 13, lineHeight: 20 },
+    hiddenCard: {
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      gap: 10,
+      marginTop: 8,
+    },
+    hiddenTitle: { fontSize: 15, fontWeight: "800" },
+    hiddenText: { fontSize: 12, lineHeight: 18 },
+    hiddenLabel: { fontSize: 12, fontWeight: "700", marginTop: 4 },
+    hiddenInput: {
+      borderWidth: 1,
+      borderColor: t.border,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: 13,
+    },
+    hiddenHelp: { fontSize: 11, lineHeight: 16 },
+    hiddenRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+    hiddenBtn: {
+      backgroundColor: t.textThird,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 10,
+      minWidth: 88,
+      alignItems: "center",
+    },
+    hiddenBtnText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+    hiddenResult: { fontSize: 11, lineHeight: 16 },
     footer: { textAlign: "center", fontSize: 11, marginTop: 8 },
   });

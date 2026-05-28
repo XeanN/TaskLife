@@ -17,6 +17,7 @@ export type Task = {
   description?: string;
   done: boolean;
   dueDate?: Date;
+  reminders?: TaskReminderPreset[];
   priority: Priority;
   labelIds: string[];
   areaId: string;
@@ -25,3 +26,13 @@ export type Task = {
 };
 
 export type NewTask = Omit<Task, "id" | "createdAt" | "updatedAt">;
+
+export type TaskReminderPreset = {
+  offsetDays: number;
+  hour?: number;
+  minute?: number;
+};
+
+export type TaskWithReminders = Task & {
+  reminders?: TaskReminderPreset[];
+};

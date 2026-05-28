@@ -86,6 +86,7 @@ Los hooks son la capa de aplicación que orquesta estado, caché y coordinación
 - `hooks/useStats.ts` y `hooks/useWeeklyReport.ts` consultan métricas.
 - `hooks/useReminders.ts` consulta recordatorios y sincroniza notificaciones locales.
 - `hooks/useGoogleAuth.ts` encapsula el flujo de Google Sign-In.
+- `hooks/useTasks.ts` también construye un reporte semanal local y las alarmas próximas derivadas de las tareas cuando el backend no aporta datos suficientes.
 
 Aquí aparece el patrón clave del proyecto: **las pantallas no llaman todo directamente al backend**; normalmente llaman a un hook, y el hook decide si usa caché, si pide al servicio o si sincroniza notificaciones.
 
@@ -210,6 +211,8 @@ Estado final de integración del backend para recordatorios:
 - `GET /users/{userId}/reminders/run` permite ejecutar o simular el procesamiento manual de recordatorios.
 - `POST /users/{userId}/push-token` guarda el token del dispositivo para futuras notificaciones push.
 - Las fechas se validan en JSON y el backend responde de forma consistente, así que el frontend ya puede consumir estos datos sin cambiar el contrato principal.
+- Cuando el backend de reportes viene vacío, el cliente reconstruye una vista local de la semana usando las tareas sincronizadas.
+- Los recordatorios de tarea ahora pueden llevar varios presets `{ offsetDays, hour, minute }` y se persisten al crear/editar tareas.
 
 Con esto, la parte de recordatorios queda cerrada del lado del frontend y lista para la presentación.
 

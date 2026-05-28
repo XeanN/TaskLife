@@ -1,5 +1,6 @@
 import { useTheme } from "@/context/ThemeContext";
-import { getApiUrlDefault, loadApiUrlOverride, setApiUrlOverride } from "@/services/runtimeConfig";
+import { apiFetch, clearBackendAccessToken, loadBackendAccessToken, setBackendAccessToken } from "@/services/apiClient";
+import { getApiUrl, getApiUrlDefault, loadApiUrlOverride, setApiUrlOverride } from "@/services/runtimeConfig";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -10,11 +11,17 @@ export default function BackendSettings() {
 
   const [override, setOverride] = useState<string | null>(null);
   const [input, setInput] = useState("");
+  const [backendToken, setBackendToken] = useState<string | null>(null);
+  const [backendInput, setBackendInput] = useState("");
 
   useEffect(() => {
     loadApiUrlOverride().then((v) => {
       setOverride(v);
       setInput(v ?? "");
+    });
+    loadBackendAccessToken().then((t) => {
+      setBackendToken(t);
+      setBackendInput(t ?? "");
     });
   }, []);
 
@@ -30,6 +37,20 @@ export default function BackendSettings() {
     setOverride(null);
     setInput("");
     alert("Override eliminado. Se usará la URL por defecto.");
+  };
+
+  const saveBackendToken = async () => {
+    const val = backendInput && backendInput.length ? backendInput : null;
+    await setBackendAccessToken(val);
+    setBackendToken(val);
+    alert("Access token guardado en la app.");
+  };
+
+  const clearBackendToken = async () => {
+    await clearBackendAccessToken();
+    setBackendToken(null);
+    setBackendInput("");
+    alert("Access token eliminado.");
   };
 
   return (
@@ -69,6 +90,51 @@ export default function BackendSettings() {
             Usa esto para alternar entre la URL por defecto (definida en .env.local)
             y una URL pública o local sin tocar archivos.
           </Text>
+        </View>
+
+        <View style={{ marginTop: 28 }}>
+          <Text style={[s.label, { marginTop: 0 }]}>Pegar access token (solo para pruebas)</Text>
+          <TextInput
+            style={[s.input, { color: theme.text }]}
+            placeholder="pega aquí el accessToken devuelto por /auth/firebase"
+            placeholderTextColor={theme.textSecond}
+            value={backendInput}
+            onChangeText={setBackendInput}
+            autoCapitalize="none"
+            multiline
+          />
+
+          <View style={s.row}>
+            <Pressable style={s.btn} onPress={saveBackendToken}>
+              <Text style={s.btnText}>Guardar token</Text>
+            </Pressable>
+            <Pressable style={[s.btn, { backgroundColor: theme.danger }]} onPress={clearBackendToken}>
+              <Text style={s.btnText}>Eliminar token</Text>
+            </Pressable>
+          </View>
+
+          <Text style={[s.hint, { marginTop: 12 }]}>Token actual: {backendToken ? "(guardado)" : "(ninguno)"}</Text>
+        </View>
+
+        <View style={{ marginTop: 20 }}>
+          <Pressable
+            style={[s.btn, { marginTop: 6 }]}
+            onPress={async () => {
+              const API_URL = getApiUrl();
+              const url = `${API_URL}/users/me/weekly-report`;
+              try {
+                console.log("Testing connection to:", url);
+                const res = await apiFetch(url, { method: "GET" });
+                const text = await res.text();
+                alert(`Status: ${res.status} \nBody: ${text}`);
+              } catch (err: any) {
+                console.error("Connection test failed:", err);
+                alert(`Connection test failed: ${err.message || String(err)}`);
+              }
+            }}
+          >
+            <Text style={s.btnText}>Probar conexión</Text>
+          </Pressable>
         </View>
       </View>
     </SafeAreaView>

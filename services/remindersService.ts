@@ -1,3 +1,4 @@
+import { apiFetch } from "./apiClient";
 import { parseApiError } from "./errorHandler";
 import { getApiUrl } from "./runtimeConfig";
 
@@ -13,15 +14,76 @@ export function normalizeRemindersPayload(payload: any) {
   return [];
 }
 
-// Local fallback store for reminders created client-side when backend is unreachable
+// Local cache for reminders created client-side or confirmed by backend
 const localRemindersStore: Record<string, any[]> = {};
+const localRemindersListeners = new Set<() => void>();
+const dismissedReminderKeysStore: Record<string, Set<string>> = {};
+
+function emitLocalRemindersUpdate() {
+  localRemindersListeners.forEach((listener) => listener());
+}
+
+export function subscribeLocalReminders(listener: () => void) {
+  localRemindersListeners.add(listener);
+  return () => localRemindersListeners.delete(listener);
+}
+
+function getReminderKey(reminder: any) {
+  if (!reminder || typeof reminder !== "object") return null;
+  const id = reminder.id || reminder.reminderId;
+  if (id) return String(id);
+  return `${reminder.taskId || "task"}-${reminder.dueAt || reminder.scheduledAt || "no-date"}-${reminder.type || reminder.title || "reminder"}`;
+}
+
+export function buildReminderKey(reminder: any) {
+  return getReminderKey(reminder);
+}
+
+function ensureDismissedSet(userId: string) {
+  if (!dismissedReminderKeysStore[userId]) {
+    dismissedReminderKeysStore[userId] = new Set<string>();
+  }
+  return dismissedReminderKeysStore[userId];
+}
+
+function markReminderDismissed(userId: string, reminder: any) {
+  const key = getReminderKey(reminder);
+  if (!userId || !key) return;
+  ensureDismissedSet(userId).add(key);
+}
+
+function isReminderDismissed(userId: string, reminder: any) {
+  const key = getReminderKey(reminder);
+  if (!key) return false;
+  return !!dismissedReminderKeysStore[userId]?.has(key);
+}
+
+function normalizeReminderForLocalStore(reminder: any) {
+  const now = new Date().toISOString();
+  const dueAt = reminder?.dueAt || reminder?.scheduledAt || now;
+  const scheduledAt = reminder?.scheduledAt || reminder?.dueAt || dueAt;
+  const generatedId = reminder?.id || reminder?.reminderId || `local-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+
+  return {
+    ...reminder,
+    id: String(generatedId),
+    dueAt,
+    scheduledAt,
+    title: reminder?.title || reminder?.type || "Recordatorio TaskLife",
+    body: reminder?.body || reminder?.message || "Tienes una tarea pendiente.",
+    status: reminder?.status || "pending",
+  };
+}
 
 export function addLocalReminder(userId: string, reminder: any) {
   if (!userId) return;
   if (!localRemindersStore[userId]) localRemindersStore[userId] = [];
-  // Avoid duplicates by id
-  if (localRemindersStore[userId].some((r) => r.id === reminder.id)) return;
-  localRemindersStore[userId].push(reminder);
+  const normalized = normalizeReminderForLocalStore(reminder);
+  const nextKey = getReminderKey(normalized);
+  if (!nextKey) return;
+  if (localRemindersStore[userId].some((r) => getReminderKey(r) === nextKey)) return;
+  localRemindersStore[userId].push(normalized);
+  emitLocalRemindersUpdate();
 }
 
 export function getLocalReminders(userId: string) {
@@ -32,6 +94,57 @@ export function removeLocalReminder(userId: string, reminderId: string) {
   if (!userId || !reminderId) return;
   if (!localRemindersStore[userId]) return;
   localRemindersStore[userId] = localRemindersStore[userId].filter((r) => r.id !== reminderId);
+  emitLocalRemindersUpdate();
+}
+
+function removeLocalReminderByKey(userId: string, reminder: any) {
+  if (!userId || !localRemindersStore[userId]) return;
+  const key = getReminderKey(reminder);
+  if (!key) return;
+  localRemindersStore[userId] = localRemindersStore[userId].filter((r) => getReminderKey(r) !== key);
+  emitLocalRemindersUpdate();
+}
+
+export async function dismissReminder(userId: string, reminder: any) {
+  if (!userId || !reminder) return;
+
+  markReminderDismissed(userId, reminder);
+  removeLocalReminderByKey(userId, reminder);
+
+  const reminderId = reminder?.id || reminder?.reminderId;
+  if (!reminderId) return;
+
+  try {
+    const API_URL = getApiUrl();
+    const url = `${API_URL}/users/${userId}/reminders/${encodeURIComponent(String(reminderId))}`;
+    await apiFetch(url, { method: "DELETE" });
+  } catch {
+    // Best effort: if backend does not expose delete endpoint, we still keep it dismissed locally.
+  }
+}
+
+export function removeExpiredReminders(userId: string, reminders: any[], graceMs = 90_000) {
+  const now = Date.now();
+  const active: any[] = [];
+
+  reminders.forEach((reminder) => {
+    const dueRaw = reminder?.dueAt || reminder?.scheduledAt;
+    const dueMs = dueRaw ? new Date(dueRaw).getTime() : NaN;
+    if (!Number.isFinite(dueMs)) {
+      active.push(reminder);
+      return;
+    }
+
+    if (dueMs <= now - graceMs) {
+      markReminderDismissed(userId, reminder);
+      removeLocalReminderByKey(userId, reminder);
+      return;
+    }
+
+    active.push(reminder);
+  });
+
+  return active;
 }
 
 const handleResponse = async (res) => {
@@ -47,7 +160,7 @@ const handleResponse = async (res) => {
   }
 
   if (!res.ok) {
-    const error = await parseApiError(res);
+    const error = await parseApiError(res, text);
     throw error;
   }
 
@@ -70,7 +183,7 @@ export const obtenerRemindersDue = async (userId: string) => {
     const url = `${API_URL}/users/${userId}/reminders/due`;
     console.log("🔔 Fetching due reminders from:", url);
 
-    const res = await fetch(url, {
+    const res = await apiFetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -81,7 +194,7 @@ export const obtenerRemindersDue = async (userId: string) => {
     const reminders = normalizeRemindersPayload(data);
     // Merge local fallback reminders (created on device when backend failed)
     const local = getLocalReminders(userId) || [];
-    const merged = [...reminders, ...local];
+    const merged = [...reminders, ...local].filter((item) => !isReminderDismissed(userId, item));
     console.log("✅ Due reminders fetched (backend+local):", merged.length);
     return merged;
   } catch (err: any) {
@@ -102,7 +215,7 @@ export const ejecutarReminders = async (userId: string) => {
     const url = `${API_URL}/users/${userId}/reminders/run`;
     console.log("⚙️ Running reminders from:", url);
 
-    const res = await fetch(url, {
+    const res = await apiFetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -128,7 +241,7 @@ export const crearReminder = async (userId: string, reminder: any) => {
     const url = `${API_URL}/users/${userId}/reminders`;
     console.log("🔧 Creating reminder on backend:", url, reminder);
 
-    const res = await fetch(url, {
+    const res = await apiFetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(reminder),
@@ -147,12 +260,10 @@ export const crearReminder = async (userId: string, reminder: any) => {
       created = data;
     }
 
-    // If we created a reminder on backend, remove matching local fallback if present
+    // Cache created reminders locally so the UI can show future reminders immediately.
     try {
-      const createdId = created?.id || reminder.id;
-      if (createdId) {
-        removeLocalReminder(userId, createdId);
-      }
+      const cachedReminder = created || reminder;
+      addLocalReminder(userId, cachedReminder);
     } catch (e) {
       // ignore
     }

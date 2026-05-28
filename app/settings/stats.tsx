@@ -1,11 +1,12 @@
 import { useTheme } from "@/context/ThemeContext";
 import { useReminders } from "@/hooks/useReminders";
 import { useStats } from "@/hooks/useStats";
+import { buildWeeklyReportFromTasks, collectUpcomingTaskReminders, useAllTasks } from "@/hooks/useTasks";
 import { useWeeklyReport } from "@/hooks/useWeeklyReport";
 import { sendTestReminderNotification } from "@/services/notificationsService";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
     ActivityIndicator,
     Pressable,
@@ -18,14 +19,49 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function StatsScreen() {
   const { theme } = useTheme();
+  const { allTasks } = useAllTasks();
   const { stats, loading: statsLoading, error: statsError } = useStats();
   const { weeklyReport, loading: reportLoading, error: reportError } =
     useWeeklyReport();
-  const { reminders, loading: remindersLoading, error: remindersError } =
+  const { reminders, loading: remindersLoading, error: remindersError, dismiss } =
     useReminders();
   const [sendingTestReminder, setSendingTestReminder] = useState(false);
 
   const s = makeStyles(theme);
+
+  const localWeeklyReport = useMemo(() => buildWeeklyReportFromTasks(allTasks), [allTasks]);
+  const hasWeeklyBackendData = !!weeklyReport && (
+    (weeklyReport.tasksCreated || 0) > 0 ||
+    (weeklyReport.tasksCompleted || 0) > 0 ||
+    (weeklyReport.byArea && Object.keys(weeklyReport.byArea).length > 0)
+  );
+  const weeklyReportToShow = hasWeeklyBackendData ? weeklyReport : localWeeklyReport;
+
+  const upcomingTaskReminders = useMemo(
+    () => collectUpcomingTaskReminders(allTasks),
+    [allTasks],
+  );
+  const remindersToShow = useMemo(() => {
+    const now = Date.now();
+    const merged = [...reminders, ...upcomingTaskReminders];
+    const seen = new Set<string>();
+    return merged
+      .filter((item: any) => {
+        const dueRaw = item?.dueAt || item?.scheduledAt;
+        const dueMs = dueRaw ? new Date(dueRaw).getTime() : NaN;
+        if (Number.isFinite(dueMs) && dueMs <= now) return false;
+
+        const key = String(item?.id || `${item?.taskId || "task"}-${item?.dueAt || item?.scheduledAt || "no-date"}`);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a: any, b: any) => {
+        const aTime = new Date(a?.dueAt || a?.scheduledAt || 0).getTime();
+        const bTime = new Date(b?.dueAt || b?.scheduledAt || 0).getTime();
+        return aTime - bTime;
+      });
+  }, [reminders, upcomingTaskReminders]);
 
   const handleBack = () => router.back();
 
@@ -135,39 +171,42 @@ export default function StatsScreen() {
         <View style={[s.section, { borderLeftColor: theme.success }]}>
           <Text style={s.sectionTitle}>📅 Esta Semana</Text>
 
-          {reportLoading && (
+          {reportLoading && !hasWeeklyBackendData && (
             <View style={s.centerLoader}>
               <ActivityIndicator color={theme.success} size="large" />
             </View>
           )}
 
-          {reportError && (
+          {reportError && !hasWeeklyBackendData && (
             <View style={s.errorBox}>
               <Text style={s.errorText}>{reportError.message}</Text>
             </View>
           )}
 
-          {weeklyReport && !reportLoading && (
+          {weeklyReportToShow && (!reportLoading || hasWeeklyBackendData) && (
             <View>
+              {!hasWeeklyBackendData && (
+                <Text style={[s.byAreaTitle, { marginBottom: 10 }]}>Vista local de respaldo</Text>
+              )}
               <View style={s.weeklyRow}>
                 <View style={s.weeklyItem}>
                   <Text style={[s.weeklyValue, { color: theme.primary }]}>
-                    {weeklyReport.tasksCreated}
+                    {weeklyReportToShow.tasksCreated}
                   </Text>
                   <Text style={s.weeklyLabel}>Creadas</Text>
                 </View>
                 <View style={s.weeklyDivider} />
                 <View style={s.weeklyItem}>
                   <Text style={[s.weeklyValue, { color: theme.success }]}>
-                    {weeklyReport.tasksCompleted}
+                    {weeklyReportToShow.tasksCompleted}
                   </Text>
                   <Text style={s.weeklyLabel}>Completadas</Text>
                 </View>
                 <View style={s.weeklyDivider} />
                 <View style={s.weeklyItem}>
                   <Text style={[s.weeklyValue, { color: theme.gold }]}>
-                    {weeklyReport.completionRate
-                      ? Math.round(weeklyReport.completionRate * 100)
+                    {weeklyReportToShow.completionRate
+                      ? Math.round(weeklyReportToShow.completionRate * 100)
                       : 0}
                     %
                   </Text>
@@ -176,10 +215,10 @@ export default function StatsScreen() {
               </View>
 
               {/* Por área */}
-              {weeklyReport.byArea && Object.keys(weeklyReport.byArea).length > 0 && (
+              {weeklyReportToShow.byArea && Object.keys(weeklyReportToShow.byArea).length > 0 && (
                 <View style={s.byAreaSection}>
                   <Text style={s.byAreaTitle}>Desglose por Área:</Text>
-                  {Object.entries(weeklyReport.byArea).map(([area, count]) => (
+                  {Object.entries(weeklyReportToShow.byArea).map(([area, count]) => (
                     <View key={area} style={s.areaRow}>
                       <Text style={s.areaName}>{area}</Text>
                       <Text style={s.areaCount}>{count} tareas</Text>
@@ -207,9 +246,9 @@ export default function StatsScreen() {
             </View>
           )}
 
-          {!remindersLoading && Array.isArray(reminders) && (
+          {!remindersLoading && Array.isArray(remindersToShow) && (
             <View>
-              {reminders.length === 0 ? (
+              {remindersToShow.length === 0 ? (
                 <View style={s.emptyBox}>
                   <Ionicons name="checkmark-circle" size={40} color={theme.success} />
                     <Text style={s.emptyText}>No hay recordatorios pendientes.</Text>
@@ -220,11 +259,11 @@ export default function StatsScreen() {
               ) : (
                 <View>
                   <Text style={s.remindersCount}>
-                    {reminders.length} recordador{reminders.length !== 1 ? "es" : ""}{" "}
-                    pendiente{reminders.length !== 1 ? "s" : ""}
+                    {remindersToShow.length} recordador{remindersToShow.length !== 1 ? "es" : ""}{" "}
+                    pendiente{remindersToShow.length !== 1 ? "s" : ""}
                   </Text>
                   <View style={s.remindersList}>
-                    {reminders.slice(0, 3).map((reminder: any) => (
+                    {remindersToShow.slice(0, 5).map((reminder: any) => (
                       <View key={reminder.id} style={s.reminderItem}>
                         <Ionicons name="time" size={16} color={theme.textSecond} />
                         <View style={{ flex: 1 }}>
@@ -244,11 +283,18 @@ export default function StatsScreen() {
                             </Text>
                           )}
                         </View>
+                        <Pressable
+                          onPress={() => dismiss(reminder)}
+                          style={s.reminderDeleteBtn}
+                          hitSlop={8}
+                        >
+                          <Ionicons name="trash-outline" size={16} color={theme.danger} />
+                        </Pressable>
                       </View>
                     ))}
-                    {reminders.length > 3 && (
+                    {remindersToShow.length > 5 && (
                       <Text style={s.moreReminders}>
-                        +{reminders.length - 3} más...
+                        +{remindersToShow.length - 5} más...
                       </Text>
                     )}
                   </View>
@@ -491,6 +537,13 @@ const makeStyles = (t: ReturnType<typeof useTheme>["theme"]) =>
       paddingVertical: 8,
       backgroundColor: t.inputBg,
       borderRadius: 6,
+    },
+    reminderDeleteBtn: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
     },
     reminderText: {
       fontSize: 12,

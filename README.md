@@ -30,6 +30,8 @@
 - ✅ Datos sincronizados a través de **backend REST** (Ktor)
 - ✅ Navegación por **tabs** con Expo Router
 - ✅ Arquitectura **MVC híbrida** (Model + Controller + View + hooks/context)
+- ✅ **Recordatorios configurables** por tarea, con hora elegible y varios avisos automáticos
+- ✅ **Resumen semanal con respaldo local** cuando el backend devuelve vacío o tarda en responder
 
 ### Estado actual del front
 
@@ -52,6 +54,8 @@ El frontend ya consulta recordatorios pendientes desde el backend y programa not
 
 - La pantalla de estadísticas muestra los recordatorios pendientes.
 - La pantalla de notificaciones incluye una acción para probar una alarma local.
+- Las tareas pueden programar varios recordatorios con hora personalizable desde el formulario.
+- Si el reporte semanal del backend viene vacío, la UI reconstruye una vista local con las tareas actuales para no mostrar una semana en blanco.
 - Android usa sonido por defecto del sistema.
 - Si quieres un ringtone propio, hay que agregar un asset de audio y reconstruir la app.
 - Para push server-side todavía se requiere scheduler del backend y token de dispositivo.
@@ -197,7 +201,7 @@ Si recibes `Network request failed` en la app, revisa:
 Para la demo actual, la base URL pública temporal es:
 
 ```bash
-EXPO_PUBLIC_API_URL=https://gmt-brokers-sampling-democrat.trycloudflare.com
+EXPO_PUBLIC_API_URL=https://batteries-cad-including-particles.trycloudflare.com
 ```
 
 Estado actual de la integración en esta rama:

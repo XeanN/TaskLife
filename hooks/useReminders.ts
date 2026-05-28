@@ -1,9 +1,14 @@
 import { useAuth } from "@/context/AuthContext";
 import { syncReminderNotifications } from "@/services/notificationsService";
 import {
+    buildReminderKey,
+    dismissReminder,
     ejecutarReminders,
+    getLocalReminders,
     normalizeRemindersPayload,
     obtenerRemindersDue,
+    removeExpiredReminders,
+    subscribeLocalReminders,
 } from "@/services/remindersService";
 import { useEffect, useRef, useState } from "react";
 
@@ -44,13 +49,26 @@ function getRemindersSnapshot() {
   return remindersStore.data;
 }
 
+function mergeAndDedupReminders(items: any[]) {
+  const seen = new Set<string>();
+  return items.filter((item: any, index: number) => {
+    const key = buildReminderKey(item) || `reminder-${index}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 async function fetchReminders(userId: string) {
   const existingPromise = remindersStore.fetchPromise;
   if (existingPromise) return existingPromise;
 
   const promise = (async () => {
     const data = await obtenerRemindersDue(userId);
-    const reminders = normalizeRemindersPayload(data);
+    const reminders = removeExpiredReminders(
+      userId,
+      mergeAndDedupReminders(normalizeRemindersPayload(data)),
+    );
     setRemindersInStore(reminders);
 
     syncReminderNotifications(reminders).catch((err) => {
@@ -112,8 +130,23 @@ export function useReminders() {
       }
     });
 
+    const unsubscribeLocal = subscribeLocalReminders(() => {
+      if (isMountedRef.current) {
+        const backendReminders = normalizeRemindersPayload(getRemindersSnapshot());
+        const localReminders = getLocalReminders(userId);
+        const active = removeExpiredReminders(
+          userId,
+          mergeAndDedupReminders([...backendReminders, ...localReminders]),
+        );
+        setReminders(active);
+      }
+    });
+
     unsubscribeRef.current = unsubscribe;
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      unsubscribeLocal();
+    };
   }, [userId]);
 
   // Fetch inicial o refetch si cache expiró
@@ -153,6 +186,20 @@ export function useReminders() {
         }
       });
   }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const timer = setInterval(() => {
+      if (!isMountedRef.current) return;
+      const current = Array.isArray(getRemindersSnapshot()) ? getRemindersSnapshot() : reminders;
+      const active = removeExpiredReminders(userId, mergeAndDedupReminders(current));
+      setRemindersInStore(active);
+      setReminders(active);
+    }, 30_000);
+
+    return () => clearInterval(timer);
+  }, [userId, reminders]);
 
   const refetch = async () => {
     if (!userId) return;
@@ -203,6 +250,21 @@ export function useReminders() {
     setReminders([]);
   };
 
+  const dismiss = async (reminder: any) => {
+    if (!userId) return;
+    await dismissReminder(userId, reminder);
+
+    const current = Array.isArray(getRemindersSnapshot()) ? getRemindersSnapshot() : [];
+    const next = mergeAndDedupReminders(current.filter((item: any) => {
+      const left = buildReminderKey(item);
+      const right = buildReminderKey(reminder);
+      return !right || left !== right;
+    }));
+
+    setRemindersInStore(next);
+    setReminders(next);
+  };
+
   return {
     reminders,
     loading,
@@ -210,6 +272,7 @@ export function useReminders() {
     executing,
     refetch,
     executeReminders,
+    dismiss,
     invalidate,
   };
 }

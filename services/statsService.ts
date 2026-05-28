@@ -1,3 +1,4 @@
+import { apiFetch } from "./apiClient";
 import { parseApiError } from "./errorHandler";
 import { getApiUrl } from "./runtimeConfig";
 
@@ -14,7 +15,7 @@ const handleResponse = async (res) => {
   }
 
   if (!res.ok) {
-    const error = await parseApiError(res);
+    const error = await parseApiError(res, text);
     throw error;
   }
 
@@ -37,7 +38,7 @@ export const obtenerStats = async (userId: string) => {
     const url = `${API_URL}/users/${userId}/stats`;
     console.log("📊 Fetching stats from:", url);
 
-    const res = await fetch(url, {
+    const res = await apiFetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -63,7 +64,7 @@ export const obtenerWeeklyReport = async (userId: string) => {
     const url = `${API_URL}/users/${userId}/weekly-report`;
     console.log("📈 Fetching weekly report from:", url);
 
-    const res = await fetch(url, {
+    const res = await apiFetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

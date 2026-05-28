@@ -1,9 +1,11 @@
 import { GoogleUserInfo, User } from "@/models/User";
 import {
-  registerWithEmail,
-  signInWithEmail,
-  signOutUser,
-  subscribeToAuthState,
+    clearBackendSession,
+    exchangeCurrentFirebaseUserWithBackend,
+    registerWithEmail,
+    signInWithEmail,
+    signOutUser,
+    subscribeToAuthState,
 } from "@/services/authService";
 import { User as FirebaseUser } from "firebase/auth";
 
@@ -40,7 +42,7 @@ export async function loginWithEmail(
   }
   try {
     const { user } = await signInWithEmail(email, password);
-    return mapFirebaseUser(user);
+    return await exchangeCurrentFirebaseUserWithBackend(user);
   } catch (error: any) {
     if (
       error.code === "auth/user-not-found" ||
@@ -76,7 +78,8 @@ export async function registerWithEmailAndName(
   }
   try {
     const fbUser = await registerWithEmail(name.trim(), email.trim(), password);
-    return { ...mapFirebaseUser(fbUser), name: name.trim() };
+    const backendUser = await exchangeCurrentFirebaseUserWithBackend(fbUser);
+    return { ...backendUser, name: name.trim() };
   } catch (error: any) {
     if (error.code === "auth/email-already-in-use") {
       throw new Error("Este correo ya está registrado");
@@ -93,4 +96,5 @@ export async function registerWithEmailAndName(
 
 export async function logoutUser() {
   await signOutUser();
+  await clearBackendSession();
 }

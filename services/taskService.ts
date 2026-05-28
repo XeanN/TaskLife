@@ -1,4 +1,5 @@
 
+import { apiFetch } from "./apiClient";
 import { parseApiError } from "./errorHandler";
 import { getApiUrl } from "./runtimeConfig";
 
@@ -15,7 +16,7 @@ const handleResponse = async (res) => {
   }
 
   if (!res.ok) {
-    const error = await parseApiError(res);
+    const error = await parseApiError(res, text);
     throw error;
   }
 
@@ -31,11 +32,11 @@ const handleResponse = async (res) => {
 // ──────────────────────────────────────────────────────────
 
 export const obtenerTareas = async (userId, areaId) => {
+  const API_URL = getApiUrl();
   try {
     if (!userId) throw new Error("userId es requerido");
     if (!areaId) throw new Error("areaId es requerido");
-    
-    const API_URL = getApiUrl();
+
     const url = `${API_URL}/users/${userId}/areas/${areaId}/tasks`;
     console.log("📥 Fetching tasks from:", url);
 
@@ -44,7 +45,7 @@ export const obtenerTareas = async (userId, areaId) => {
     let attempt = 0;
     while (true) {
       try {
-        const res = await fetch(url, {
+        const res = await apiFetch(url, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -87,15 +88,15 @@ export const getTasks = obtenerTareas;
 // ──────────────────────────────────────────────────────────
 
 export const crearTarea = async (userId, areaId, tarea) => {
+  const API_URL = getApiUrl();
   try {
     if (!userId) throw new Error("userId es requerido");
     if (!areaId) throw new Error("areaId es requerido");
-    
-    const API_URL = getApiUrl();
+
     const url = `${API_URL}/users/${userId}/areas/${areaId}/tasks`;
     console.log("📤 Creating task at:", url, "with data:", tarea);
     
-    const res = await fetch(url, {
+    const res = await apiFetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -132,7 +133,7 @@ export const actualizarTarea = async (userId, areaId, taskId, cambios) => {
     const url = `${API_URL}/users/${userId}/areas/${areaId}/tasks/${taskId}`;
     console.log("📝 Updating task at:", url, "with data:", cambios);
     
-    const res = await fetch(url, {
+    const res = await apiFetch(url, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -191,7 +192,7 @@ export const toggleTask = async (userId, areaId, taskId, done) => {
     const payload = { done };
     console.log("🔄 Toggling task at:", url, "payload:", payload);
     
-    const res = await fetch(url, {
+    const res = await apiFetch(url, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -237,15 +238,16 @@ export const toggleTask = async (userId, areaId, taskId, done) => {
 // ──────────────────────────────────────────────────────────
 
 export const eliminarTarea = async (userId, areaId, taskId) => {
+  const API_URL = getApiUrl();
   try {
     if (!userId) throw new Error("userId es requerido");
     if (!areaId) throw new Error("areaId es requerido");
     if (!taskId) throw new Error("taskId es requerido");
-    
+
     const url = `${API_URL}/users/${userId}/areas/${areaId}/tasks/${taskId}`;
     console.log("🗑️  Deleting task at:", url);
     
-    const res = await fetch(url, {
+    const res = await apiFetch(url, {
       method: "DELETE",
     });
     

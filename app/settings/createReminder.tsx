@@ -3,9 +3,10 @@ import { useTheme } from "@/context/ThemeContext";
 import { syncReminderNotifications } from "@/services/notificationsService";
 import { crearReminder } from "@/services/remindersService";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from "react-native";
 
 export default function CreateReminderScreen() {
   const { theme } = useTheme();
@@ -14,11 +15,51 @@ export default function CreateReminderScreen() {
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [dueAt, setDueAt] = useState("");
+  const [scheduledAt, setScheduledAt] = useState<Date>(() => {
+    const base = new Date(Date.now() + 5 * 60_000);
+    return base;
+  });
+  const [showPicker, setShowPicker] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const quickSet = (ms: number) => {
-    setDueAt(new Date(Date.now() + ms).toISOString());
+    setScheduledAt(new Date(Date.now() + ms));
+  };
+
+  const formattedScheduledAt = scheduledAt.toLocaleString("es-ES", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const pickDateTime = () => {
+    if (Platform.OS === "android") {
+      DateTimePickerAndroid.open({
+        value: scheduledAt,
+        mode: "date",
+        onChange: (_, pickedDate) => {
+          if (!pickedDate) return;
+          const next = new Date(scheduledAt);
+          next.setFullYear(pickedDate.getFullYear(), pickedDate.getMonth(), pickedDate.getDate());
+          DateTimePickerAndroid.open({
+            value: next,
+            mode: "time",
+            is24Hour: true,
+            onChange: (_, pickedTime) => {
+              if (!pickedTime) return;
+              const final = new Date(next);
+              final.setHours(pickedTime.getHours(), pickedTime.getMinutes(), 0, 0);
+              setScheduledAt(final);
+            },
+          });
+        },
+      });
+      return;
+    }
+
+    setShowPicker(true);
   };
 
   const submit = async () => {
@@ -28,7 +69,8 @@ export default function CreateReminderScreen() {
       const reminder = {
         title: title || "Recordatorio",
         body: body || "",
-        dueAt: dueAt || new Date(Date.now() + 5000).toISOString(),
+        dueAt: scheduledAt.toISOString(),
+        scheduledAt: scheduledAt.toISOString(),
       };
 
       const created = await crearReminder(user.id, reminder);
@@ -73,13 +115,21 @@ export default function CreateReminderScreen() {
         />
 
         <Text style={[s.label, { color: theme.text }]}>Fecha/Hora (ISO)</Text>
-        <TextInput
-          value={dueAt}
-          onChangeText={setDueAt}
-          placeholder={new Date().toISOString()}
-          placeholderTextColor={theme.textSecond}
-          style={[s.input, { backgroundColor: theme.inputBg, color: theme.text }]}
-        />
+        <Pressable onPress={pickDateTime} style={[s.input, { backgroundColor: theme.inputBg }]}> 
+          <Text style={{ color: theme.text }}>{formattedScheduledAt}</Text>
+        </Pressable>
+
+        {showPicker && (
+          <DateTimePicker
+            value={scheduledAt}
+            mode="datetime"
+            display="default"
+            onChange={(_, dt) => {
+              setShowPicker(false);
+              if (dt) setScheduledAt(dt);
+            }}
+          />
+        )}
 
         <View style={s.quickRow}>
           <Pressable style={[s.quickBtn, { backgroundColor: theme.primary }]} onPress={() => quickSet(10_000)}>
@@ -90,6 +140,9 @@ export default function CreateReminderScreen() {
           </Pressable>
           <Pressable style={[s.quickBtn, { backgroundColor: theme.primary }]} onPress={() => quickSet(5 * 60_000)}>
             <Text style={s.quickText}>+5m</Text>
+          </Pressable>
+          <Pressable style={[s.quickBtn, { backgroundColor: theme.primary }]} onPress={() => quickSet(60 * 60_000)}>
+            <Text style={s.quickText}>+1h</Text>
           </Pressable>
         </View>
 

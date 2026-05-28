@@ -1,4 +1,5 @@
 
+import { apiFetch } from "./apiClient";
 import { parseApiError } from "./errorHandler";
 import { getApiUrl } from "./runtimeConfig";
 
@@ -15,7 +16,7 @@ const handleResponse = async (res) => {
   }
 
   if (!res.ok) {
-    const error = await parseApiError(res);
+    const error = await parseApiError(res, text);
     throw error;
   }
 
@@ -38,7 +39,7 @@ export const obtenerEtiquetas = async (userId) => {
     const url = `${API_URL}/users/${userId}/labels`;
     console.log("📥 Fetching labels from:", url);
     
-    const res = await fetch(url, {
+    const res = await apiFetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -72,7 +73,7 @@ export const crearEtiqueta = async (userId, etiqueta) => {
     const url = `${API_URL}/users/${userId}/labels`;
     console.log("📤 Creating label at:", url, "with data:", etiqueta);
     
-    const res = await fetch(url, {
+    const res = await apiFetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -105,9 +106,11 @@ export const eliminarEtiqueta = async (userId, labelId) => {
     const url = `${API_URL}/users/${userId}/labels/${labelId}`;
     console.log("🗑️  Deleting label at:", url);
     
-    const res = await fetch(url, {
+    const res = await apiFetch(url, {
       method: "DELETE",
     });
+    // Ensure credentials sent for delete operations as well
+    // (some backends require session cookie for deletes)
     
     if (!res.ok) {
       throw new Error("No se pudo eliminar la etiqueta");

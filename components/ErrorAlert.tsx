@@ -1,5 +1,5 @@
 import { useTheme } from '@/context/ThemeContext';
-import { formatErrorMessage } from '@/services/errorHandler';
+import { formatErrorMessage, isQuotaError } from '@/services/errorHandler';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { Animated, Dimensions, Pressable, Text, View } from 'react-native';
@@ -72,6 +72,10 @@ export function ErrorAlert({
   };
 
   if (!localVisible || !error) return null;
+
+  if (isQuotaError(error)) {
+    return null;
+  }
 
   const animatedStyle = {
     transform: [

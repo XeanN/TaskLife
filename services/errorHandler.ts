@@ -14,12 +14,22 @@ interface ApiError extends Error {
  * Parse API error response into standardized format
  * Handles both structured error responses and plain text
  */
-export async function parseApiError(res: Response): Promise<ApiError> {
-  const text = await res.text();
-  
+export async function parseApiError(res: Response, existingText?: string): Promise<ApiError> {
+  // If the caller already consumed the response body, use the provided text
+  // to avoid attempting to read the stream again (which causes "body already read" errors).
+  let text = existingText;
+  if (typeof text === 'undefined') {
+    // Only read body if it hasn't been consumed yet
+    try {
+      text = await res.text();
+    } catch (e) {
+      text = '';
+    }
+  }
+
   let errorData: any = null;
   let isParsedJson = false;
-  
+
   try {
     errorData = text ? JSON.parse(text) : {};
     isParsedJson = true;

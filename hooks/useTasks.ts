@@ -85,6 +85,119 @@ function buildOneDayReminderDate(dueDate?: Date) {
   return reminderDate;
 }
 
+function normalizeTaskDate(value: unknown): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (typeof value === "object" && value !== null && "toDate" in value && typeof (value as any).toDate === "function") {
+    const parsed = (value as any).toDate();
+    return parsed instanceof Date && !Number.isNaN(parsed.getTime()) ? parsed : null;
+  }
+  return null;
+}
+
+function getLastSevenDaysWindow(reference = new Date()) {
+  const end = new Date(reference);
+  end.setHours(23, 59, 59, 999);
+
+  const start = new Date(reference);
+  start.setDate(start.getDate() - 6);
+  start.setHours(0, 0, 0, 0);
+
+  return { start, end };
+}
+
+export function buildWeeklyReportFromTasks(allTasks: Record<string, Task[]>) {
+  const { start, end } = getLastSevenDaysWindow();
+  const tasks = Object.values(allTasks).flat();
+
+  const weeklyTasks = tasks.filter((task: any) => {
+    const createdAt = normalizeTaskDate(task?.createdAt) || normalizeTaskDate(task?.updatedAt);
+    return !!createdAt && createdAt >= start && createdAt <= end;
+  });
+
+  const completedTasks = weeklyTasks.filter((task: any) => {
+    if (!task?.done) return false;
+    const updatedAt = normalizeTaskDate(task?.updatedAt) || normalizeTaskDate(task?.completedAt);
+    return !!updatedAt && updatedAt >= start && updatedAt <= end;
+  });
+
+  const byArea: Record<string, number> = {};
+  weeklyTasks.forEach((task: any) => {
+    const area = AREAS.find((a) => a.id === task?.areaId)?.label || task?.areaId || "Sin área";
+    byArea[area] = (byArea[area] || 0) + 1;
+  });
+
+  const tasksCreated = weeklyTasks.length;
+  const tasksCompleted = completedTasks.length;
+
+  return {
+    generatedAt: new Date().toISOString(),
+    period: {
+      start: start.toISOString(),
+      end: end.toISOString(),
+    },
+    tasksCreated,
+    tasksCompleted,
+    completionRate: tasksCreated > 0 ? tasksCompleted / tasksCreated : 0,
+    byArea,
+  };
+}
+
+function buildReminderDueDate(dueDate: Date, offsetDays: number, hour = 9, minute = 0) {
+  const reminderDate = new Date(dueDate);
+  reminderDate.setDate(reminderDate.getDate() - offsetDays);
+  reminderDate.setHours(hour, minute, 0, 0);
+  return reminderDate;
+}
+
+export function collectUpcomingTaskReminders(allTasks: Record<string, Task[]>) {
+  const now = Date.now();
+  const reminders: any[] = [];
+
+  Object.values(allTasks)
+    .flat()
+    .forEach((task: any) => {
+      const dueDate = normalizeTaskDate(task?.dueDate);
+      if (!dueDate) return;
+
+      const taskReminders = Array.isArray(task?.reminders) && task.reminders.length > 0
+        ? task.reminders
+        : [{ offsetDays: 1, hour: 9, minute: 0 }];
+
+      taskReminders.forEach((spec: any, index: number) => {
+        const reminderDate = buildReminderDueDate(
+          dueDate,
+          Number(spec?.offsetDays || 0),
+          typeof spec?.hour === "number" ? spec.hour : 9,
+          typeof spec?.minute === "number" ? spec.minute : 0,
+        );
+
+        if (reminderDate.getTime() <= now) return;
+
+        reminders.push({
+          id: `task-${task?.id || task?.taskId || "task"}-reminder-${index}`,
+          taskId: task?.id || task?.taskId || null,
+          type: `TASK_DUE_${Number(spec?.offsetDays || 0)}D`,
+          title: task?.title || "Recordatorio de tarea",
+          body: task?.description || `La tarea vence el ${dueDate.toLocaleDateString()}`,
+          dueAt: reminderDate.toISOString(),
+          scheduledAt: reminderDate.toISOString(),
+          status: task?.done ? "done" : "pending",
+          areaId: task?.areaId || null,
+        });
+      });
+    });
+
+  reminders.sort((a, b) => new Date(a.dueAt || a.scheduledAt).getTime() - new Date(b.dueAt || b.scheduledAt).getTime());
+  return reminders;
+}
+
 async function createAutoDueReminder(
   userId: string,
   formData: TaskFormData,
@@ -118,6 +231,7 @@ async function createAutoDueReminder(
       title: `Te queda ${spec.offsetDays} día(s): ${title}`,
       body: `La tarea \"${title}\" vence el ${new Date(formData.dueDate as any).toLocaleDateString()}.`,
       dueAt: reminderDate.toISOString(),
+      scheduledAt: reminderDate.toISOString(),
       status: "pending",
     };
 
@@ -128,8 +242,14 @@ async function createAutoDueReminder(
 
   try {
     const created = await Promise.all(payloads.map((p) => crearReminder(userId, p)));
-    // created may contain fallback objects; schedule notifications for all
-    await syncReminderNotifications(created.map((c, i) => c || payloads[i]));
+    const remindersToSchedule = payloads.map((payload, i) => ({
+      ...payload,
+      ...(created[i] || {}),
+      dueAt: created[i]?.dueAt || created[i]?.scheduledAt || payload.dueAt,
+      scheduledAt: created[i]?.scheduledAt || created[i]?.dueAt || payload.scheduledAt,
+      id: String(created[i]?.id || created[i]?.reminderId || payload.id),
+    }));
+    await syncReminderNotifications(remindersToSchedule);
   } catch (err: any) {
     console.warn("⚠️ No se pudo crear/sincronizar recordatorios automáticos de tarea:", err?.message || err);
   }
@@ -232,7 +352,8 @@ export function useAreaTasks(
       console.error("❌ Error fetching tasks:", err);
       const msg = err?.message?.toString() || "Error al cargar tareas";
       if (msg.toLowerCase().includes("quota") || msg.toLowerCase().includes("429")) {
-        setError("Límite temporal de lecturas alcanzado. Intenta en unos minutos.");
+        setError(null);
+        console.warn("⚠️ Límite temporal detectado; se omite el mensaje para la demo.");
       } else {
         setError(msg);
       }
@@ -377,7 +498,8 @@ export function useAllTasks() {
     } catch (err: any) {
       const msg = err?.message?.toString() || "Error al cargar tareas";
       if (msg.toLowerCase().includes("quota") || msg.toLowerCase().includes("429")) {
-        setError("Límite temporal de lecturas alcanzado. Intenta en unos minutos.");
+        setError(null);
+        console.warn("⚠️ Límite temporal detectado; se omite el mensaje para la demo.");
       } else {
         setError(msg);
       }

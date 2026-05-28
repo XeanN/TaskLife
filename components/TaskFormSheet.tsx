@@ -4,9 +4,7 @@ import { AREAS, PRIORITIES } from "@/models/Area";
 import { Label } from "@/models/Label";
 import { Task, TaskFormData } from "@/models/Task";
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker, {
-    DateTimePickerAndroid,
-} from "@react-native-community/datetimepicker";
+import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
@@ -32,6 +30,13 @@ const normalizePriority = (value: unknown): "alta" | "media" | "baja" => {
     }
   }
   return "media";
+};
+
+type ReminderPresetUI = {
+  id: string;
+  offsetDays: number;
+  hour: number;
+  minute: number;
 };
 
 interface Props {
@@ -64,29 +69,59 @@ export default function TaskFormSheet({
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [labelIds, setLabelIds] = useState<string[]>([]);
   const [showDate, setShowDate] = useState(false);
+  const [showReminderTime, setShowReminderTime] = useState(false);
+  const [editingReminderIndex, setEditingReminderIndex] = useState<number | null>(null);
+  const [iosReminderTime, setIosReminderTime] = useState<Date>(() => {
+    const base = new Date();
+    base.setHours(9, 0, 0, 0);
+    return base;
+  });
   const [saving, setSaving] = useState(false);
-  const [selectedReminders, setSelectedReminders] = useState<{
-    d2: boolean;
-    d1: boolean;
-    d0: boolean;
-  }>({ d2: false, d1: true, d0: false });
+  const [reminderPresets, setReminderPresets] = useState<ReminderPresetUI[]>([
+    { id: `preset-${Date.now()}-1`, offsetDays: 1, hour: 9, minute: 0 },
+  ]);
   const [titleError, setTitleError] = useState<string | null>(null);
 
-  // Reset al abrir
+  const normalizedDueDate = dueDate ? new Date(dueDate) : undefined;
+
   useEffect(() => {
-    if (visible) {
-      setTitle(initial?.title ?? "");
-      setDescription(initial?.description ?? "");
-      setPriority(normalizePriority(initial?.priority));
-      setAreaId(initial?.areaId ?? defaultAreaId);
-      setDueDate(
-        initial?.dueDate ? new Date(initial.dueDate as any) : undefined,
-      );
-      setLabelIds(initial?.labelIds ?? []);
-      setSelectedReminders({ d2: false, d1: true, d0: false });
-      setShowDate(false);
-      setTitleError(null);
-    }
+    if (!visible) return;
+
+    setTitle(initial?.title ?? "");
+    setDescription(initial?.description ?? "");
+    setPriority(normalizePriority(initial?.priority));
+    setAreaId(initial?.areaId ?? defaultAreaId);
+    setDueDate(initial?.dueDate ? new Date(initial.dueDate as any) : undefined);
+    setLabelIds(initial?.labelIds ?? []);
+
+    const initialReminders = Array.isArray((initial as any)?.reminders)
+      ? ((initial as any).reminders as any[])
+          .map((r, idx) => {
+            const offsetDays = Number(r?.offsetDays);
+            const hour = Number(r?.hour);
+            const minute = Number(r?.minute);
+            return {
+              id: `preset-init-${idx}-${Date.now()}`,
+              offsetDays: Number.isFinite(offsetDays) && offsetDays >= 0 ? offsetDays : 1,
+              hour: Number.isFinite(hour) && hour >= 0 && hour <= 23 ? hour : 9,
+              minute: Number.isFinite(minute) && minute >= 0 && minute <= 59 ? minute : 0,
+            } as ReminderPresetUI;
+          })
+      : [];
+
+    setReminderPresets(
+      initialReminders.length > 0
+        ? initialReminders
+        : [{ id: `preset-${Date.now()}-1`, offsetDays: 1, hour: 9, minute: 0 }],
+    );
+
+    setShowDate(false);
+    setShowReminderTime(false);
+    setEditingReminderIndex(null);
+    const base = new Date();
+    base.setHours(9, 0, 0, 0);
+    setIosReminderTime(base);
+    setTitleError(null);
   }, [visible, initial, defaultAreaId]);
 
   const activeColor =
@@ -101,52 +136,39 @@ export default function TaskFormSheet({
     );
   };
 
-  const handleSave = async () => {
-    const normalizedTitle = title.trim();
-    if (!normalizedTitle) {
-      setTitleError("Escribe un nombre para la tarea");
-      return;
-    }
-
-    setTitleError(null);
-    setSaving(true);
-    try {
-      const remindersArr: { offsetDays: number; hour?: number; minute?: number }[] = [];
-      if (dueDate) {
-        if (selectedReminders.d2) remindersArr.push({ offsetDays: 2, hour: 9, minute: 0 });
-        if (selectedReminders.d1) remindersArr.push({ offsetDays: 1, hour: 9, minute: 0 });
-        if (selectedReminders.d0) remindersArr.push({ offsetDays: 0, hour: 9, minute: 0 });
-      }
-
-      const payload: any = {
-        title: normalizedTitle,
-        description: description.trim(),
-        priority: normalizePriority(priority),
-        areaId,
-        dueDate,
-        labelIds,
-      };
-      if (remindersArr.length > 0) payload.reminders = remindersArr;
-
-      await onSave(payload);
-      // Si llegó acá, fue exitoso - cerrar modal
-      onClose();
-    } catch (err: any) {
-      // Mostrar error en alert
-      errorAlert.show(err);
-    } finally {
-      setSaving(false);
-    }
+  const formatReminderTime = (hour: number, minute: number) => {
+    const d = new Date();
+    d.setHours(hour, minute, 0, 0);
+    return d.toLocaleTimeString("es-ES", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
-  const formattedDate =
-    normalizedDueDate && !Number.isNaN(normalizedDueDate.getTime())
-      ? normalizedDueDate.toLocaleDateString("es-ES", {
-          weekday: "short",
-          day: "numeric",
-          month: "long",
-        })
-      : null;
+  const addReminderPreset = () => {
+    setReminderPresets((prev) => [
+      ...prev,
+      {
+        id: `preset-${Date.now()}-${prev.length + 1}`,
+        offsetDays: 0,
+        hour: 9,
+        minute: 0,
+      },
+    ]);
+  };
+
+  const removeReminderPreset = (index: number) => {
+    setReminderPresets((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateReminderPreset = (
+    index: number,
+    patch: Partial<ReminderPresetUI>,
+  ) => {
+    setReminderPresets((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, ...patch } : item)),
+    );
+  };
 
   const openDatePicker = () => {
     const currentValue = normalizedDueDate ?? new Date();
@@ -167,6 +189,87 @@ export default function TaskFormSheet({
 
     setShowDate(true);
   };
+
+  const openReminderTimePickerFor = (index: number) => {
+    const preset = reminderPresets[index];
+    if (!preset) return;
+
+    const base = new Date();
+    base.setHours(preset.hour, preset.minute, 0, 0);
+
+    if (Platform.OS === "android") {
+      DateTimePickerAndroid.open({
+        value: base,
+        mode: "time",
+        is24Hour: true,
+        onChange: (_, selectedTime) => {
+          if (selectedTime) {
+            updateReminderPreset(index, {
+              hour: selectedTime.getHours(),
+              minute: selectedTime.getMinutes(),
+            });
+          }
+        },
+      });
+      return;
+    }
+
+    setEditingReminderIndex(index);
+    setIosReminderTime(base);
+    setShowReminderTime(true);
+  };
+
+  const handleSave = async () => {
+    const normalizedTitle = title.trim();
+    if (!normalizedTitle) {
+      setTitleError("Escribe un nombre para la tarea");
+      return;
+    }
+
+    setTitleError(null);
+    setSaving(true);
+    try {
+      const remindersArr: { offsetDays: number; hour?: number; minute?: number }[] = [];
+      if (dueDate) {
+        reminderPresets.forEach((preset) => {
+          remindersArr.push({
+            offsetDays: Math.max(0, Number(preset.offsetDays || 0)),
+            hour: Math.max(0, Math.min(23, Number(preset.hour || 0))),
+            minute: Math.max(0, Math.min(59, Number(preset.minute || 0))),
+          });
+        });
+      }
+
+      const payload: any = {
+        title: normalizedTitle,
+        description: description.trim(),
+        priority: normalizePriority(priority),
+        areaId,
+        dueDate,
+        labelIds,
+      };
+
+      if (remindersArr.length > 0) {
+        payload.reminders = remindersArr;
+      }
+
+      await onSave(payload);
+      onClose();
+    } catch (err: any) {
+      errorAlert.show(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const formattedDate =
+    normalizedDueDate && !Number.isNaN(normalizedDueDate.getTime())
+      ? normalizedDueDate.toLocaleDateString("es-ES", {
+          weekday: "short",
+          day: "numeric",
+          month: "long",
+        })
+      : null;
 
   return (
     <Modal
@@ -192,11 +295,9 @@ export default function TaskFormSheet({
       >
         <Pressable style={s.backdrop} onPress={onClose} />
 
-        <View style={[s.sheet, { backgroundColor: theme.card }]}>
-          {/* Handle */}
+        <View style={[s.sheet, { backgroundColor: theme.card }]}> 
           <View style={[s.handle, { backgroundColor: theme.border }]} />
 
-          {/* Header */}
           <View style={s.sheetHeader}>
             <Text style={[s.sheetTitle, { color: theme.text }]}>
               {initial ? "Editar tarea" : "Nueva tarea"}
@@ -210,7 +311,6 @@ export default function TaskFormSheet({
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Título */}
             <TextInput
               style={[
                 s.titleInput,
@@ -232,12 +332,9 @@ export default function TaskFormSheet({
               multiline
             />
             {titleError && (
-              <Text style={[s.fieldError, { color: theme.danger }]}>
-                {titleError}
-              </Text>
+              <Text style={[s.fieldError, { color: theme.danger }]}>{titleError}</Text>
             )}
 
-            {/* Descripción */}
             <TextInput
               style={[s.descInput, { color: theme.textSecond }]}
               placeholder="Descripción (opcional)"
@@ -247,12 +344,9 @@ export default function TaskFormSheet({
               multiline
             />
 
-            {/* Área — solo si no hay defaultAreaId fijo */}
             {!areaColor && (
               <View style={s.section}>
-                <Text style={[s.sectionLabel, { color: theme.textSecond }]}>
-                  Área
-                </Text>
+                <Text style={[s.sectionLabel, { color: theme.textSecond }]}>Área</Text>
                 <View style={s.row}>
                   {AREAS.map((a) => (
                     <Pressable
@@ -260,9 +354,7 @@ export default function TaskFormSheet({
                       style={[
                         s.areaChip,
                         { borderColor: a.color },
-                        areaId === a.id && {
-                          backgroundColor: a.color,
-                        },
+                        areaId === a.id && { backgroundColor: a.color },
                       ]}
                       onPress={() => setAreaId(a.id)}
                     >
@@ -281,11 +373,8 @@ export default function TaskFormSheet({
               </View>
             )}
 
-            {/* Prioridad */}
             <View style={s.section}>
-              <Text style={[s.sectionLabel, { color: theme.textSecond }]}>
-                Prioridad
-              </Text>
+              <Text style={[s.sectionLabel, { color: theme.textSecond }]}>Prioridad</Text>
               <View style={s.row}>
                 {PRIORITIES.map((p) => (
                   <Pressable
@@ -293,9 +382,7 @@ export default function TaskFormSheet({
                     style={[
                       s.priorityChip,
                       { borderColor: p.color },
-                      priority === p.value && {
-                        backgroundColor: p.color,
-                      },
+                      priority === p.value && { backgroundColor: p.color },
                     ]}
                     onPress={() => setPriority(p.value)}
                   >
@@ -313,11 +400,8 @@ export default function TaskFormSheet({
               </View>
             </View>
 
-            {/* Fecha */}
             <View style={s.section}>
-              <Text style={[s.sectionLabel, { color: theme.textSecond }]}>
-                Fecha de vencimiento
-              </Text>
+              <Text style={[s.sectionLabel, { color: theme.textSecond }]}>Fecha de vencimiento</Text>
               <View style={s.dateRow}>
                 <Pressable
                   style={[
@@ -329,11 +413,7 @@ export default function TaskFormSheet({
                   ]}
                   onPress={openDatePicker}
                 >
-                  <Ionicons
-                    name="calendar-outline"
-                    size={16}
-                    color={activeColor}
-                  />
+                  <Ionicons name="calendar-outline" size={16} color={activeColor} />
                   <Text
                     style={[
                       s.dateBtnText,
@@ -344,20 +424,12 @@ export default function TaskFormSheet({
                   </Text>
                 </Pressable>
                 {dueDate && (
-                  <Pressable
-                    style={s.clearDate}
-                    onPress={() => {
-                      setDueDate(undefined);
-                    }}
-                  >
-                    <Ionicons
-                      name="close-circle"
-                      size={20}
-                      color={theme.textThird}
-                    />
+                  <Pressable style={s.clearDate} onPress={() => setDueDate(undefined)}>
+                    <Ionicons name="close-circle" size={20} color={theme.textThird} />
                   </Pressable>
                 )}
               </View>
+
               {showDate && (
                 <DateTimePicker
                   value={normalizedDueDate ?? new Date()}
@@ -372,58 +444,115 @@ export default function TaskFormSheet({
                   }}
                 />
               )}
-              <Text style={[s.helperText, { color: theme.textThird }]}>
-                Al guardar una fecha, TaskLife programa automáticamente una
-                alarma 1 día antes para esa tarea.
-              </Text>
             </View>
 
-              {/* Recordatorios programables */}
-              <View style={s.section}>
-                <Text style={[s.sectionLabel, { color: theme.textSecond }]}>Recordatorios</Text>
-                <View style={s.row}>
-                  <Pressable
-                    onPress={() => setSelectedReminders((p) => ({ ...p, d2: !p.d2 }))}
-                    style={[
-                      s.priorityChip,
-                      { borderColor: selectedReminders.d2 ? activeColor : theme.border },
-                      selectedReminders.d2 && { backgroundColor: activeColor },
-                    ]}
-                  >
-                    <Text style={[s.priorityChipText, selectedReminders.d2 && { color: "#fff" }]}>2 días antes 09:00</Text>
-                  </Pressable>
+            <View style={s.section}>
+              <Text style={[s.sectionLabel, { color: theme.textSecond }]}>Recordatorios</Text>
 
-                  <Pressable
-                    onPress={() => setSelectedReminders((p) => ({ ...p, d1: !p.d1 }))}
-                    style={[
-                      s.priorityChip,
-                      { borderColor: selectedReminders.d1 ? activeColor : theme.border },
-                      selectedReminders.d1 && { backgroundColor: activeColor },
-                    ]}
-                  >
-                    <Text style={[s.priorityChipText, selectedReminders.d1 && { color: "#fff" }]}>1 día antes 09:00</Text>
-                  </Pressable>
+              {!dueDate && (
+                <Text style={[s.helperText, { color: theme.textThird }]}>Primero selecciona fecha de vencimiento para configurar recordatorios.</Text>
+              )}
 
-                  <Pressable
-                    onPress={() => setSelectedReminders((p) => ({ ...p, d0: !p.d0 }))}
+              <View style={s.reminderList}>
+                {reminderPresets.map((preset, index) => (
+                  <View
+                    key={preset.id}
                     style={[
-                      s.priorityChip,
-                      { borderColor: selectedReminders.d0 ? activeColor : theme.border },
-                      selectedReminders.d0 && { backgroundColor: activeColor },
+                      s.reminderRow,
+                      {
+                        borderColor: theme.border,
+                        backgroundColor: theme.inputBg,
+                        opacity: dueDate ? 1 : 0.65,
+                      },
                     ]}
                   >
-                    <Text style={[s.priorityChipText, selectedReminders.d0 && { color: "#fff" }]}>En la fecha 09:00</Text>
-                  </Pressable>
-                </View>
-                <Text style={[s.helperText, { color: theme.textThird }]}>Selecciona uno o varios recordatorios automáticos para esta tarea.</Text>
+                    <View style={s.reminderMain}>
+                      <Text style={[s.reminderTitle, { color: theme.text }]}>Aviso {index + 1}</Text>
+                      <Text style={[s.reminderSubtitle, { color: theme.textSecond }]}>Se enviará {preset.offsetDays} día(s) antes</Text>
+                    </View>
+
+                    <View style={s.reminderControls}>
+                      <View style={s.stepper}>
+                        <Pressable
+                          style={[s.stepBtn, { borderColor: theme.border }]}
+                          onPress={() => updateReminderPreset(index, { offsetDays: Math.max(0, preset.offsetDays - 1) })}
+                          disabled={!dueDate}
+                        >
+                          <Ionicons name="remove" size={14} color={theme.textSecond} />
+                        </Pressable>
+                        <Text style={[s.stepValue, { color: theme.text }]}>{preset.offsetDays}d</Text>
+                        <Pressable
+                          style={[s.stepBtn, { borderColor: theme.border }]}
+                          onPress={() => updateReminderPreset(index, { offsetDays: preset.offsetDays + 1 })}
+                          disabled={!dueDate}
+                        >
+                          <Ionicons name="add" size={14} color={theme.textSecond} />
+                        </Pressable>
+                      </View>
+
+                      <Pressable
+                        style={[s.timeBtn, { borderColor: activeColor }]}
+                        onPress={() => openReminderTimePickerFor(index)}
+                        disabled={!dueDate}
+                      >
+                        <Ionicons name="time-outline" size={14} color={activeColor} />
+                        <Text style={[s.timeBtnText, { color: activeColor }]}>
+                          {formatReminderTime(preset.hour, preset.minute)}
+                        </Text>
+                      </Pressable>
+
+                      <Pressable
+                        style={s.removeBtn}
+                        onPress={() => removeReminderPreset(index)}
+                        disabled={!dueDate || reminderPresets.length <= 1}
+                      >
+                        <Ionicons name="trash-outline" size={16} color={theme.danger} />
+                      </Pressable>
+                    </View>
+                  </View>
+                ))}
               </View>
 
-            {/* Etiquetas */}
+              <Pressable
+                style={[
+                  s.addReminderBtn,
+                  {
+                    borderColor: activeColor,
+                    opacity: dueDate ? 1 : 0.65,
+                  },
+                ]}
+                onPress={addReminderPreset}
+                disabled={!dueDate}
+              >
+                <Ionicons name="add-circle-outline" size={16} color={activeColor} />
+                <Text style={[s.addReminderText, { color: activeColor }]}>Agregar recordatorio</Text>
+              </Pressable>
+
+              <Text style={[s.helperText, { color: theme.textThird }]}>Puedes crear N avisos por tarea y elegir hora para cada uno.</Text>
+
+              {showReminderTime && (
+                <DateTimePicker
+                  value={iosReminderTime}
+                  mode="time"
+                  display="default"
+                  is24Hour
+                  onChange={(_, time) => {
+                    setShowReminderTime(false);
+                    if (editingReminderIndex !== null && time) {
+                      updateReminderPreset(editingReminderIndex, {
+                        hour: time.getHours(),
+                        minute: time.getMinutes(),
+                      });
+                    }
+                    setEditingReminderIndex(null);
+                  }}
+                />
+              )}
+            </View>
+
             {labels.length > 0 && (
               <View style={s.section}>
-                <Text style={[s.sectionLabel, { color: theme.textSecond }]}>
-                  Etiquetas
-                </Text>
+                <Text style={[s.sectionLabel, { color: theme.textSecond }]}>Etiquetas</Text>
                 <View style={s.row}>
                   {labels.map((lbl) => {
                     const selected = labelIds.includes(lbl.id);
@@ -463,15 +592,12 @@ export default function TaskFormSheet({
             <View style={s.bottomPad} />
           </ScrollView>
 
-          {/* Botones */}
           <View style={[s.footer, { borderTopColor: theme.border }]}>
             <Pressable
               style={[s.cancelBtn, { backgroundColor: theme.inputBg }]}
               onPress={onClose}
             >
-              <Text style={[s.cancelText, { color: theme.textSecond }]}>
-                Cancelar
-              </Text>
+              <Text style={[s.cancelText, { color: theme.textSecond }]}>Cancelar</Text>
             </Pressable>
             <Pressable
               style={[
@@ -614,6 +740,86 @@ const makeStyles = (t: ReturnType<typeof useTheme>["theme"]) =>
     },
     clearDate: {
       padding: 4,
+    },
+    reminderList: {
+      gap: 8,
+    },
+    reminderRow: {
+      borderWidth: 1,
+      borderRadius: 12,
+      padding: 10,
+      gap: 8,
+    },
+    reminderMain: {
+      gap: 2,
+    },
+    reminderTitle: {
+      fontSize: 13,
+      fontWeight: "700",
+    },
+    reminderSubtitle: {
+      fontSize: 12,
+    },
+    reminderControls: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      flexWrap: "wrap",
+    },
+    stepper: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    stepBtn: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      borderWidth: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: t.card,
+    },
+    stepValue: {
+      fontSize: 12,
+      fontWeight: "700",
+      minWidth: 30,
+      textAlign: "center",
+    },
+    timeBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+      borderWidth: 1.5,
+      backgroundColor: t.card,
+    },
+    timeBtnText: {
+      fontSize: 12,
+      fontWeight: "700",
+    },
+    removeBtn: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    addReminderBtn: {
+      marginTop: 10,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      borderWidth: 1.5,
+      borderRadius: 10,
+      paddingVertical: 10,
+    },
+    addReminderText: {
+      fontSize: 13,
+      fontWeight: "700",
     },
     labelChip: {
       flexDirection: "row",

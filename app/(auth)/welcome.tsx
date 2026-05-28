@@ -40,14 +40,14 @@ export default function WelcomeScreen() {
       />
 
       {/* Logo */}
-      <View style={s.logoRow}>
+      <Pressable style={s.logoRow} onPress={() => router.push("/settings") }>
         <Image
           source={require("@/assets/images/logo_up.png")}
           style={s.logoImg}
           resizeMode="contain"
         />
         <Text style={s.logoText}>TaskLife</Text>
-      </View>
+      </Pressable>
 
       {/* Ilustración */}
       <View style={s.heroCard}>
@@ -111,7 +111,9 @@ export default function WelcomeScreen() {
       <Text style={s.terms}>
         Al continuar con estos servicios, aceptas los{" "}
         <Text style={s.termsLink}>Términos de Servicio</Text> y nuestra{" "}
-        <Text style={s.termsLink}>Política de Privacidad</Text>
+        <Pressable onPress={() => router.push("/settings/privacy")}>
+          <Text style={s.termsLink}>Política de Privacidad</Text>
+        </Pressable>
       </Text>
     </SafeAreaView>
   );
