@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiFetch } from "./apiClient";
 import { parseApiError } from "./errorHandler";
 import { getApiUrl } from "./runtimeConfig";
@@ -18,6 +19,38 @@ export function normalizeRemindersPayload(payload: any) {
 const localRemindersStore: Record<string, any[]> = {};
 const localRemindersListeners = new Set<() => void>();
 const dismissedReminderKeysStore: Record<string, Set<string>> = {};
+const LOCAL_REMINDERS_STORAGE_PREFIX = "tasklife_local_reminders:";
+
+async function persistLocalReminders(userId: string) {
+  if (!userId) return;
+  try {
+    const payload = JSON.stringify(localRemindersStore[userId] || []);
+    await AsyncStorage.setItem(`${LOCAL_REMINDERS_STORAGE_PREFIX}${userId}`, payload);
+  } catch {
+    // Best effort only.
+  }
+}
+
+async function hydrateLocalReminders(userId: string) {
+  if (!userId || localRemindersStore[userId]) return;
+  try {
+    const raw = await AsyncStorage.getItem(`${LOCAL_REMINDERS_STORAGE_PREFIX}${userId}`);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      localRemindersStore[userId] = parsed
+        .map(normalizeReminderForLocalStore)
+        .filter((reminder) => !!getReminderKey(reminder));
+    }
+  } catch {
+    // Best effort only.
+  }
+}
+
+export async function loadLocalReminders(userId: string) {
+  await hydrateLocalReminders(userId);
+  return getLocalReminders(userId);
+}
 
 function emitLocalRemindersUpdate() {
   localRemindersListeners.forEach((listener) => listener());
@@ -83,6 +116,7 @@ export function addLocalReminder(userId: string, reminder: any) {
   if (!nextKey) return;
   if (localRemindersStore[userId].some((r) => getReminderKey(r) === nextKey)) return;
   localRemindersStore[userId].push(normalized);
+  persistLocalReminders(userId);
   emitLocalRemindersUpdate();
 }
 
@@ -94,6 +128,7 @@ export function removeLocalReminder(userId: string, reminderId: string) {
   if (!userId || !reminderId) return;
   if (!localRemindersStore[userId]) return;
   localRemindersStore[userId] = localRemindersStore[userId].filter((r) => r.id !== reminderId);
+  persistLocalReminders(userId);
   emitLocalRemindersUpdate();
 }
 
@@ -102,6 +137,7 @@ function removeLocalReminderByKey(userId: string, reminder: any) {
   const key = getReminderKey(reminder);
   if (!key) return;
   localRemindersStore[userId] = localRemindersStore[userId].filter((r) => getReminderKey(r) !== key);
+  persistLocalReminders(userId);
   emitLocalRemindersUpdate();
 }
 

@@ -5,6 +5,7 @@ import {
     dismissReminder,
     ejecutarReminders,
     getLocalReminders,
+    loadLocalReminders,
     normalizeRemindersPayload,
     obtenerRemindersDue,
     removeExpiredReminders,
@@ -64,6 +65,7 @@ async function fetchReminders(userId: string) {
   if (existingPromise) return existingPromise;
 
   const promise = (async () => {
+    await loadLocalReminders(userId);
     const data = await obtenerRemindersDue(userId);
     const reminders = removeExpiredReminders(
       userId,
